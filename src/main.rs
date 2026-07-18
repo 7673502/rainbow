@@ -35,9 +35,9 @@ impl PartialEq for Combo {
                     start: x_start,
                     end: x_end,
                 },
-                Combo::Set {
-                    card: y_start,
-                    count: y_end,
+                Combo::Run {
+                    start: y_start,
+                    end: y_end,
                 },
             ) => x_start == y_start && x_end == y_end,
             _ => false,
