@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Combo {
     Single { card: u8 },
     Set { card: u8, count: u8 },
@@ -69,6 +69,103 @@ impl PartialOrd for Combo {
                 Some(x_len.cmp(&y_len).then(x_end.cmp(&y_end)))
             }
             _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::arbitrary::Arbitrary;
+    use proptest::prelude::*;
+
+    impl Arbitrary for Combo {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Combo>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                (1..=6u8).prop_map(|card| Combo::Single { card }),
+                (1..=6u8, 1..=10u8).prop_map(|(card, count)| Combo::Set { card, count }),
+                (1..=5u8).prop_flat_map(
+                    |start| (start + 1..=6u8).prop_map(move |end| Combo::Run { start, end })
+                ),
+            ]
+            .boxed()
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_partial_ord_symmetry(a in any::<Combo>(), b in any::<Combo>()) {
+            match a.partial_cmp(&b) {
+                Some(Ordering::Greater) => assert!(b < a),
+                Some(Ordering::Less) => assert!(b > a),
+                Some(Ordering::Equal) => assert!(b == a),
+                None => assert!(b.partial_cmp(&a).is_none()),
+            }
+        }
+
+        #[test]
+        fn test_single_comparisons(card1 in 1..=6u8, card2 in 1..=6u8) {
+            let combo1 = Combo::Single { card: card1 };
+            let combo2 = Combo::Single { card: card2 };
+
+            if card1 < card2 {
+                assert!(combo1 < combo2);
+            } else if card2 < card1 {
+                assert!(combo2 < combo1);
+            } else {
+                assert_eq!(combo1, combo2);
+            }
+        }
+
+        #[test]
+        fn test_set_comparisons(
+            card1 in 1..=6u8, count1 in 1..=10u8,
+            card2 in 1..=6u8, count2 in 1..=10u8,
+        ) {
+            let combo1 = Combo::Set { card: card1, count: count1 };
+            let combo2 = Combo::Set { card: card2, count: count2 };
+
+            if count1 < count2 {
+                assert!(combo1 < combo2);
+            } else if count2 < count1 {
+                assert!(combo2 < combo1);
+            } else if card1 < card2 {
+                assert!(combo1 < combo2);
+            } else if card2 < card1 {
+                assert!(combo2 < combo1);
+            } else {
+                assert_eq!(combo1, combo2);
+            }
+        }
+
+        #[test]
+        fn test_run_comparisons(
+            start1 in 1..=5u8, end1 in 2..=6u8,
+            start2 in 1..=5u8, end2 in 2..=6u8,
+        ) {
+            prop_assume!(start1 < end1);
+            prop_assume!(start2 < end2);
+
+            let combo1 = Combo::Run { start: start1, end: end1 };
+            let combo2 = Combo::Run { start: start2, end: end2 };
+
+            let combo1_len = end1 - start1 + 1;
+            let combo2_len = end2 - start2 + 1;
+
+            if combo1_len < combo2_len {
+                assert!(combo1 < combo2);
+            } else if combo2_len < combo1_len {
+                assert!(combo2 < combo1);
+            } else if end1 < end2 {
+                assert!(combo1 < combo2);
+            } else if end2 < end1 {
+                assert!(combo2 < combo1);
+            } else {
+                assert_eq!(combo1, combo2);
+            }
         }
     }
 }
