@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::Play;
 use crate::agents::Agent;
 use crate::game::game_state::GameState;
 
@@ -28,6 +29,7 @@ impl GameRunner {
     }
 
     fn run_iteration(&mut self) {
+        todo!();
         let current_player_uid = self.state.get_current_player_uid();
         let current_agent = &self.agents[&current_player_uid];
 
@@ -36,10 +38,9 @@ impl GameRunner {
 
         let choice_index = current_agent.choose_action(scrubbed_state, valid_actions);
 
-
         let play = Play {
             player_uid: current_player_uid,
-            combo: 
-        }
+            combo: valid_actions[choice_index],
+        };
     }
 }
