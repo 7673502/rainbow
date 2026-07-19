@@ -1,4 +1,4 @@
-use crate::combo::Combo;
+use crate::game::combo::Combo;
 
 #[derive(Copy, Clone)]
 pub struct Play {

@@ -2,12 +2,12 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 
-use crate::combo::Combo;
 use crate::constants::MAX_RANK;
-use crate::play::Play;
-use crate::player::Player;
-use crate::trick_type::TrickType;
-use crate::view::{GameView, OpponentView};
+use crate::game::combo::Combo;
+use crate::game::play::Play;
+use crate::game::player::Player;
+use crate::game::trick_type::TrickType;
+use crate::game::view::{GameView, OpponentView};
 
 pub struct GameState {
     available_points: Vec<u8>,

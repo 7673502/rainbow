@@ -1,7 +1,4 @@
-pub mod combo;
 pub mod constants;
-pub mod game_state;
-pub mod play;
-pub mod player;
-pub mod trick_type;
-pub mod view;
+pub mod game;
+
+pub use game::{Combo, GameState, GameView, Play};

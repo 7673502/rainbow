@@ -1,6 +1,4 @@
-use crate::combo::Combo;
 use crate::constants::MAX_RANK;
-use crate::play::Play;
 
 pub struct Player {
     pub uid: u8,

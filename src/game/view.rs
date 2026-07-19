@@ -1,6 +1,6 @@
 use crate::constants::MAX_RANK;
-use crate::play::Play;
-use crate::trick_type::TrickType;
+use crate::game::play::Play;
+use crate::game::trick_type::TrickType;
 
 pub struct GameView {
     pub available_points: Vec<u8>,
