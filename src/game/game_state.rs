@@ -16,13 +16,19 @@ pub struct GameState {
     current_trick_type: TrickType,
     current_player_index: u8,
     active_player_count: u8,
+    is_game_over: bool,
 }
 
 impl GameState {
-    pub fn new(player_uids: Vec<u8>, seed: u64) -> Self {
+    pub fn new(player_uids: Vec<u8>, seed: Option<u64>) -> Self {
         let cards: Vec<u8> = vec![1, 2, 3, 4, 5, 6];
         let mut deck: Vec<u8> = cards.into_iter().cycle().take(60).collect();
-        deck.shuffle(&mut StdRng::seed_from_u64(seed));
+
+        let mut rng = match seed {
+            Some(seed) => StdRng::seed_from_u64(seed),
+            None => StdRng::from_rng(&mut rand::rng()),
+        };
+        deck.shuffle(&mut rng);
 
         let mut players: Vec<Player> = player_uids.iter().map(|p| Player::new(*p)).collect();
 
@@ -60,6 +66,7 @@ impl GameState {
             current_trick_type: TrickType::Open,
             current_player_index: 0,
             active_player_count: player_uids.len() as u8,
+            is_game_over: false,
         }
     }
 
@@ -133,6 +140,10 @@ impl GameState {
             opponents,
         }
     }
+
+    pub fn get_current_player_uid(&self) -> u8 {
+        self.players[self.current_player_index as usize].uid
+    }
 }
 
 #[cfg(test)]
@@ -141,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_get_legal_actions_singles() {
-        let mut game = GameState::new(vec![1, 2, 3], 42);
+        let mut game = GameState::new(vec![1, 2, 3], Some(42));
 
         game.players[0].hand = [0, 2, 2, 0, 0, 0, 0];
         game.current_trick_type = TrickType::Run;
@@ -159,7 +170,7 @@ mod tests {
 
     #[test]
     fn test_get_legal_actions_sets() {
-        let mut game = GameState::new(vec![1, 2, 3], 42);
+        let mut game = GameState::new(vec![1, 2, 3], Some(42));
 
         game.players[0].hand = [0, 0, 3, 0, 3, 3, 0];
         game.current_trick_type = TrickType::Set;
@@ -188,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_get_legal_actions_runs() {
-        let mut game = GameState::new(vec![1, 2, 3], 42);
+        let mut game = GameState::new(vec![1, 2, 3], Some(42));
 
         game.players[0].hand = [0, 2, 3, 1, 3, 0, 3];
         game.current_trick_type = TrickType::Run;
