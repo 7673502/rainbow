@@ -29,18 +29,24 @@ impl GameRunner {
     }
 
     fn run_iteration(&mut self) {
-        todo!();
         let current_player_uid = self.state.get_current_player_uid();
         let current_agent = &self.agents[&current_player_uid];
 
         let valid_actions = self.state.get_legal_actions(current_player_uid);
         let scrubbed_state = self.state.scrub_state(current_player_uid);
 
-        let choice_index = current_agent.choose_action(scrubbed_state, valid_actions);
-
-        let play = Play {
-            player_uid: current_player_uid,
-            combo: valid_actions[choice_index],
+        let choice_index = current_agent.choose_action(scrubbed_state, &valid_actions);
+        let chosen_combo = match valid_actions.get(choice_index) {
+            Some(combo) => Play {
+                player_uid: current_player_uid,
+                combo: *combo,
+            },
+            None => panic!(
+                "Agent with uid {} returned an invalid action index",
+                current_player_uid
+            ),
         };
+
+        todo!();
     }
 }
