@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+#[derive(Copy, Clone)]
 pub enum Combo {
     Single { card: u8 },
     Set { card: u8, count: u8 },

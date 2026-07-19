@@ -1,13 +1,15 @@
+use crate::combo::Combo;
 use crate::constants::MAX_RANK;
+use crate::play::Play;
 
 pub struct Player {
-    pub uid: u32,
+    pub uid: u8,
     pub hand: [u8; MAX_RANK + 1],
     pub points: u8,
 }
 
 impl Player {
-    pub fn new(uid: u32) -> Self {
+    pub fn new(uid: u8) -> Self {
         Self {
             uid,
             hand: [0; MAX_RANK + 1],

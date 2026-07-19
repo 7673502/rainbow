@@ -4,3 +4,4 @@ pub mod game_state;
 pub mod play;
 pub mod player;
 pub mod trick_type;
+pub mod view;
