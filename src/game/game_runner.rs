@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 
-use crate::Play;
 use crate::agents::Agent;
 use crate::game::game_state::GameState;
 
-struct GameRunner {
+pub struct GameRunner {
     state: GameState,
     agents: HashMap<u8, Box<dyn Agent>>,
 }
 
 impl GameRunner {
-    fn new(
+    pub fn new(
         participants: impl IntoIterator<Item = (u8, Box<dyn Agent>)>,
         seed: Option<u64>,
     ) -> Self {
@@ -28,7 +27,13 @@ impl GameRunner {
         }
     }
 
-    fn run_iteration(&mut self) {
+    pub fn run_game(&mut self) -> &GameState {
+        while !self.run_iteration() {}
+
+        &self.state
+    }
+
+    fn run_iteration(&mut self) -> bool {
         let current_player_uid = self.state.get_current_player_uid();
         let current_agent = &self.agents[&current_player_uid];
 
@@ -39,12 +44,12 @@ impl GameRunner {
         let chosen_combo = match valid_actions.get(choice_index) {
             Some(combo) => combo,
             None => panic!(
-                "Agent with uid {} returned an invalid action index",
-                current_player_uid
+                "agent with uid {} returned invalid action index {}",
+                current_player_uid, choice_index
             ),
         };
         self.state.apply_action(*chosen_combo);
 
-        todo!();
+        self.state.get_is_game_over()
     }
 }

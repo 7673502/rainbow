@@ -244,6 +244,10 @@ impl GameState {
     pub fn get_current_player_uid(&self) -> u8 {
         self.players[self.current_player_index as usize].uid
     }
+
+    pub fn get_is_game_over(&self) -> bool {
+        return self.is_game_over;
+    }
 }
 
 #[cfg(test)]
