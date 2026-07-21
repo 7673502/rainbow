@@ -118,17 +118,19 @@ impl GameState {
 
         // update the player hand
         let current_player = &mut self.players[self.current_player_index as usize];
-        match &combo {
-            &Combo::Single { card } => {
+        match combo {
+            Combo::Single { card } => {
                 current_player.hand[card as usize] -= 1;
             }
-            &Combo::Set { card, count } => {
+            Combo::Set { card, count } => {
                 current_player.hand[card as usize] -= count;
+                self.current_trick_type = TrickType::Set;
             }
-            &Combo::Run { start, end } => {
+            Combo::Run { start, end } => {
                 (start..=end).for_each(|card| {
                     current_player.hand[card as usize] -= 1;
                 });
+                self.current_trick_type = TrickType::Run;
             }
         };
 
