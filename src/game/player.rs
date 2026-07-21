@@ -1,5 +1,6 @@
 use crate::constants::MAX_RANK;
 
+#[derive(Debug)]
 pub struct Player {
     pub uid: u8,
     pub hand: [u8; MAX_RANK + 1],

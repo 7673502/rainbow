@@ -10,6 +10,7 @@ use crate::game::player::Player;
 use crate::game::trick_type::TrickType;
 use crate::game::view::{GameView, OpponentView};
 
+#[derive(Debug)]
 pub struct GameState {
     available_points: Vec<u8>,
     players: Vec<Player>,
@@ -58,7 +59,7 @@ impl GameState {
         }
 
         let mut available_points: Vec<u8> = deck.split_off(deck.len() - players.len());
-        available_points.sort_unstable_by(|a, b| b.cmp(&a));
+        available_points.sort_unstable();
 
         Self {
             available_points,
@@ -154,9 +155,13 @@ impl GameState {
         // end of round clean up
         if self.current_trick.len() as u8 == self.active_player_count {
             self.current_trick
-                .sort_by(|a, b| b.combo.partial_cmp(&a.combo).unwrap_or(Ordering::Equal));
+                .sort_by(|a, b| a.combo.partial_cmp(&b.combo).unwrap_or(Ordering::Equal));
             // set next trick first player to winner
-            let winner_uid = self.current_trick[0].player_uid;
+            let winner_uid = self
+                .current_trick
+                .last()
+                .expect("trick vector empty at end of round")
+                .player_uid;
             self.current_player_index = self
                 .players
                 .iter()
@@ -164,10 +169,14 @@ impl GameState {
                 .unwrap() as u8;
 
             // assign points
-            for i in 0..self.available_points.len() {
-                let player_uid = self.current_trick[i].player_uid;
-                if let Some(player) = self.players.iter_mut().find(|p| p.uid == player_uid) {
-                    player.points += self.available_points[i];
+            for play in &self.current_trick {
+                if let Some(points) = self.available_points.pop() {
+                    if let Some(player) = self.players.iter_mut().find(|p| p.uid == play.player_uid)
+                    {
+                        player.points += points;
+                    }
+                } else {
+                    break;
                 }
             }
 
@@ -209,7 +218,7 @@ impl GameState {
             self.available_points.clear();
             for value in (1..=12).rev() {
                 while next_round_points_candidates[value] > 0
-                    && self.available_points.len() < self.players.len()
+                    && self.available_points.len() < self.active_player_count as usize
                 {
                     self.available_points.push(value as u8);
                 }
@@ -263,6 +272,7 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_get_legal_actions_singles() {

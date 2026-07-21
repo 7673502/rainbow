@@ -2,6 +2,7 @@ use crate::constants::MAX_RANK;
 use crate::game::play::Play;
 use crate::game::trick_type::TrickType;
 
+#[derive(Debug)]
 pub struct GameView {
     pub available_points: Vec<u8>,
     pub current_trick: Vec<Play>,
@@ -16,6 +17,7 @@ pub struct GameView {
     pub opponents: Vec<OpponentView>,
 }
 
+#[derive(Debug)]
 pub struct OpponentView {
     pub uid: u8,
     pub hand_size: u8,

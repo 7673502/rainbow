@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::agents::Agent;
 use crate::game::game_state::GameState;
 
+#[derive(Debug)]
 pub struct GameRunner {
     state: GameState,
     agents: HashMap<u8, Box<dyn Agent>>,
@@ -60,6 +61,19 @@ mod tests {
     use crate::agents::random_agent::RandomAgent;
     use proptest::prelude::*;
 
+    const MAX_ITERATIONS: usize = 100;
+
+    fn create_random_participants(
+        agent_seeds: &[u64; 6],
+        num_players: u8,
+    ) -> HashMap<u8, Box<dyn Agent>> {
+        let mut participants: HashMap<u8, Box<dyn Agent>> = HashMap::new();
+        for i in 0..num_players {
+            participants.insert(i, Box::new(RandomAgent::new(Some(agent_seeds[i as usize]))));
+        }
+        participants
+    }
+
     proptest! {
         #[test]
         fn test_game_termination(
@@ -67,18 +81,35 @@ mod tests {
             agent_seeds in any::<[u64; 6]>(),
             num_players in 3..=6u8
         ) {
-            let mut participants: HashMap<u8, Box<dyn Agent>> = HashMap::new();
-                for i in 0..num_players {
-                    participants.insert(
-                        i,
-                        Box::new(RandomAgent::new(Some(agent_seeds[i as usize])))
-                    );
-                }
+            let participants = create_random_participants(&agent_seeds, num_players);
             let mut runner = GameRunner::new(participants, Some(deck_seed));
 
-            let final_state = runner.run_game();
+            let mut iterations = 0;
+            while !runner.run_iteration() {
+                iterations += 1;
+                prop_assert!(iterations < MAX_ITERATIONS);
+            }
 
-            assert!(final_state.get_is_game_over());
+            assert!(runner.state.get_is_game_over());
+        }
+
+        #[test]
+        fn test_points_count(
+            deck_seed in any::<u64>(),
+            agent_seeds in any::<[u64; 6]>(),
+            num_players in 3..=6u8
+        ) {
+            let participants = create_random_participants(&agent_seeds, num_players);
+            let mut runner = GameRunner::new(participants, Some(deck_seed));
+
+            let mut iterations = 0;
+            while !runner.run_iteration() && iterations < MAX_ITERATIONS {
+                iterations += 1;
+
+                let uid = runner.state.get_current_player_uid();
+                let view = runner.state.scrub_state(uid);
+                assert!(view.available_points.len() as u8 <= view.active_player_count);
+            }
         }
     }
 }

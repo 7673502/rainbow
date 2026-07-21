@@ -4,6 +4,7 @@ use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::cell::RefCell;
 
+#[derive(Debug)]
 pub struct RandomAgent {
     rng: RefCell<StdRng>,
 }
