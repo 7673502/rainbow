@@ -253,7 +253,7 @@ impl GameState {
             if p.uid != player_uid {
                 opponents.push(OpponentView {
                     uid: p.uid,
-                    hand_size: p.hand.len() as u8,
+                    hand_size: p.hand.iter().sum::<u8>(),
                     points: p.points,
                 });
             }
