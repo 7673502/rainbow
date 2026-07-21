@@ -167,6 +167,18 @@ impl GameState {
                 .iter()
                 .position(|p| p.uid == winner_uid)
                 .unwrap() as u8;
+            for _ in 0..self.players.len() {
+                if self.players[self.current_player_index as usize]
+                    .hand
+                    .iter()
+                    .sum::<u8>()
+                    > 0
+                {
+                    break;
+                }
+                self.current_player_index =
+                    (self.current_player_index + 1) % self.players.len() as u8;
+            }
 
             // assign points
             for play in &self.current_trick {
