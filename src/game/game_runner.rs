@@ -53,3 +53,32 @@ impl GameRunner {
         self.state.get_is_game_over()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agents::random_agent::RandomAgent;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_game_termination(
+            deck_seed in any::<u64>(),
+            agent_seeds in any::<[u64; 6]>(),
+            num_players in 3..=6u8
+        ) {
+            let mut participants: HashMap<u8, Box<dyn Agent>> = HashMap::new();
+                for i in 1..=num_players {
+                    participants.insert(
+                        i,
+                        Box::new(RandomAgent::new(Some(agent_seeds[i as usize])))
+                    );
+                }
+            let mut runner = GameRunner::new(participants, Some(deck_seed));
+
+            let final_state = runner.run_game();
+
+            assert!(final_state.get_is_game_over());
+        }
+    }
+}
