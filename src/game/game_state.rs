@@ -1,6 +1,7 @@
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
+use std::cmp::Ordering;
 
 use crate::constants::MAX_RANK;
 use crate::game::combo::Combo;
@@ -57,7 +58,7 @@ impl GameState {
         }
 
         let mut available_points: Vec<u8> = deck.split_off(deck.len() - players.len());
-        available_points.sort_unstable();
+        available_points.sort_unstable_by(|a, b| b.cmp(&a));
 
         Self {
             available_points,
@@ -109,6 +110,105 @@ impl GameState {
         }
 
         combos
+    }
+
+    pub fn apply_action(&mut self, combo: Combo) {
+        let current_player_uid = self.get_current_player_uid();
+
+        // update the player hand
+        let current_player = &mut self.players[self.current_player_index as usize];
+        match &combo {
+            &Combo::Single { card } => {
+                current_player.hand[card as usize] -= 1;
+            }
+            &Combo::Set { card, count } => {
+                current_player.hand[card as usize] -= count;
+            }
+            &Combo::Run { start, end } => {
+                (start..=end).for_each(|card| {
+                    current_player.hand[card as usize] -= 1;
+                });
+            }
+        };
+
+        // update the current trick
+        let play = Play {
+            player_uid: current_player_uid,
+            combo,
+        };
+        self.current_trick.push(play);
+
+        // update current player
+        self.current_player_index = (self.current_player_index + 1) % self.players.len() as u8;
+
+        // end of round clean up
+        if self.current_trick.len() as u8 == self.active_player_count {
+            self.current_trick
+                .sort_by(|a, b| b.combo.partial_cmp(&a.combo).unwrap_or(Ordering::Equal));
+            // set next trick first player to winner
+            let winner_uid = self.current_trick[0].player_uid;
+            self.current_player_index = self
+                .players
+                .iter()
+                .position(|p| p.uid == winner_uid)
+                .unwrap() as u8;
+
+            // assign points
+            for i in 0..self.available_points.len() {
+                let player_uid = self.current_trick[i].player_uid;
+                if let Some(player) = self.players.iter_mut().find(|p| p.uid == player_uid) {
+                    player.points += self.available_points[i];
+                }
+            }
+
+            // check if game is over
+            let mut active_player_count = self.players.len() as u8;
+            for p in &self.players {
+                if p.hand.iter().sum::<u8>() == 0 {
+                    active_player_count -= 1;
+                }
+            }
+            if active_player_count <= self.players.len() as u8 - 2 {
+                self.is_game_over = true;
+                return;
+            }
+            self.active_player_count = active_player_count;
+
+            // update next round's points
+            let mut total_counts = [0; MAX_RANK + 1];
+            for play in &self.current_trick {
+                match play.combo {
+                    Combo::Single { card } => {
+                        total_counts[card as usize] += 1;
+                    }
+                    Combo::Set { card, count } => {
+                        total_counts[card as usize] += count;
+                    }
+                    Combo::Run { start, end } => (start..=end).for_each(|rank| {
+                        total_counts[rank as usize] += 1;
+                    }),
+                }
+            }
+            let mut next_round_points_candidates = [0u8; 2 * MAX_RANK + 1];
+            for rank in 1..=MAX_RANK {
+                let pairs = total_counts[rank] / 2;
+                let singles = total_counts[rank] % 2;
+                next_round_points_candidates[rank * 2] += pairs;
+                next_round_points_candidates[rank] += singles;
+            }
+            self.available_points.clear();
+            for value in (1..=12).rev() {
+                while next_round_points_candidates[value] > 0
+                    && self.available_points.len() < self.players.len()
+                {
+                    self.available_points.push(value as u8);
+                }
+            }
+
+            // miscellaneous clean up tasks
+            self.current_trick_type = TrickType::Open;
+            self.current_trick.clear();
+        }
     }
 
     pub fn scrub_state(&self, player_uid: u8) -> GameView {

@@ -37,15 +37,13 @@ impl GameRunner {
 
         let choice_index = current_agent.choose_action(scrubbed_state, &valid_actions);
         let chosen_combo = match valid_actions.get(choice_index) {
-            Some(combo) => Play {
-                player_uid: current_player_uid,
-                combo: *combo,
-            },
+            Some(combo) => combo,
             None => panic!(
                 "Agent with uid {} returned an invalid action index",
                 current_player_uid
             ),
         };
+        self.state.apply_action(*chosen_combo);
 
         todo!();
     }
