@@ -68,7 +68,7 @@ mod tests {
             num_players in 3..=6u8
         ) {
             let mut participants: HashMap<u8, Box<dyn Agent>> = HashMap::new();
-                for i in 1..=num_players {
+                for i in 0..num_players {
                     participants.insert(
                         i,
                         Box::new(RandomAgent::new(Some(agent_seeds[i as usize])))
