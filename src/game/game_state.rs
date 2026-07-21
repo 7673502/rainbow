@@ -139,7 +139,17 @@ impl GameState {
         self.current_trick.push(play);
 
         // update current player
-        self.current_player_index = (self.current_player_index + 1) % self.players.len() as u8;
+        for _ in 0..self.players.len() {
+            self.current_player_index = (self.current_player_index + 1) % self.players.len() as u8;
+            if self.players[self.current_player_index as usize]
+                .hand
+                .iter()
+                .sum::<u8>()
+                > 0
+            {
+                break;
+            }
+        }
 
         // end of round clean up
         if self.current_trick.len() as u8 == self.active_player_count {
