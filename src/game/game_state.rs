@@ -284,7 +284,6 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::prelude::*;
 
     #[test]
     fn test_get_legal_actions_singles() {
