@@ -5,3 +5,4 @@ pub const DECK_SIZE: usize = 60;
 pub const MAX_RANK: usize = 6;
 pub const MAX_PLAYERS: usize = 6;
 pub const MIN_PLAYERS: usize = 3;
+pub const EMPTY_HANDS_TO_END_GAME: u8 = 2;

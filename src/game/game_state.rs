@@ -4,8 +4,8 @@ use rand::seq::SliceRandom;
 use std::cmp::Ordering;
 
 use crate::constants::{
-    DECK_SIZE, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS, HAND_SIZE_6_PLAYERS, MAX_PLAYERS,
-    MAX_RANK, MIN_PLAYERS,
+    DECK_SIZE, EMPTY_HANDS_TO_END_GAME, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS,
+    HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_RANK, MIN_PLAYERS,
 };
 use crate::game::combo::Combo;
 use crate::game::play::Play;
@@ -206,7 +206,7 @@ impl GameState {
                     active_player_count -= 1;
                 }
             }
-            if active_player_count <= self.players.len() as u8 - 2 {
+            if active_player_count <= self.players.len() as u8 - EMPTY_HANDS_TO_END_GAME {
                 self.is_game_over = true;
                 return;
             }
