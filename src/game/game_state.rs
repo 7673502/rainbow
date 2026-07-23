@@ -3,7 +3,7 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use std::cmp::Ordering;
 
-use crate::constants::MAX_RANK;
+use crate::constants::{DECK_SIZE, MAX_RANK};
 use crate::game::combo::Combo;
 use crate::game::play::Play;
 use crate::game::player::Player;
@@ -24,7 +24,7 @@ pub struct GameState {
 impl GameState {
     pub fn new(player_uids: Vec<u8>, seed: Option<u64>) -> Self {
         let cards: Vec<u8> = vec![1, 2, 3, 4, 5, 6];
-        let mut deck: Vec<u8> = cards.into_iter().cycle().take(60).collect();
+        let mut deck: Vec<u8> = cards.into_iter().cycle().take(DECK_SIZE).collect();
 
         let mut rng = match seed {
             Some(seed) => StdRng::seed_from_u64(seed),
