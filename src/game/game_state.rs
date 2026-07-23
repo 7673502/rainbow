@@ -4,7 +4,8 @@ use rand::seq::SliceRandom;
 use std::cmp::Ordering;
 
 use crate::constants::{
-    DECK_SIZE, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS, HAND_SIZE_6_PLAYERS, MAX_RANK,
+    DECK_SIZE, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS, HAND_SIZE_6_PLAYERS, MAX_PLAYERS,
+    MAX_RANK, MIN_PLAYERS,
 };
 use crate::game::combo::Combo;
 use crate::game::play::Play;
@@ -37,11 +38,13 @@ impl GameState {
         let mut players: Vec<Player> = player_uids.iter().map(|p| Player::new(*p)).collect();
 
         let initial_hand_size = match players.len() {
-            3..=4 => HAND_SIZE_3_4_PLAYERS,
+            3 | 4 => HAND_SIZE_3_4_PLAYERS,
             5 => HAND_SIZE_5_PLAYERS,
             6 => HAND_SIZE_6_PLAYERS,
             _ => panic!(
-                "The game supports 3-6 players (inclusive). Received player uids vector of length {}",
+                "The game supports {}-{} players (inclusive). Received player uids vector of length {}",
+                MIN_PLAYERS,
+                MAX_PLAYERS,
                 players.len()
             ),
         };
