@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 
 use crate::constants::{
     DECK_SIZE, EMPTY_HANDS_TO_END_GAME, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS,
-    HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_RANK, MIN_PLAYERS,
+    HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
 };
 use crate::game::combo::Combo;
 use crate::game::play::Play;
@@ -227,7 +227,7 @@ impl GameState {
                     }),
                 }
             }
-            let mut next_round_points_candidates = [0u8; 2 * MAX_RANK + 1];
+            let mut next_round_points_candidates = [0u8; MAX_POINTS_VALUE + 1];
             for rank in 1..=MAX_RANK {
                 let pairs = total_counts[rank] / 2;
                 let singles = total_counts[rank] % 2;
@@ -235,7 +235,7 @@ impl GameState {
                 next_round_points_candidates[rank] += singles;
             }
             self.available_points.clear();
-            for value in (1..=12).rev() {
+            for value in (1..=MAX_POINTS_VALUE).rev() {
                 while next_round_points_candidates[value] > 0
                     && self.available_points.len() < self.active_player_count as usize
                 {
