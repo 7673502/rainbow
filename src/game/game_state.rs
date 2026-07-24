@@ -26,8 +26,7 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(player_uids: Vec<u8>, seed: Option<u64>) -> Self {
-        let cards: Vec<u8> = vec![1, 2, 3, 4, 5, 6];
-        let mut deck: Vec<u8> = cards.into_iter().cycle().take(DECK_SIZE).collect();
+        let mut deck: Vec<u8> = (1..=MAX_RANK as u8).cycle().take(DECK_SIZE).collect();
 
         let mut rng = match seed {
             Some(seed) => StdRng::seed_from_u64(seed),
