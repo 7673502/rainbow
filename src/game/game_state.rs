@@ -3,7 +3,10 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use std::cmp::Ordering;
 
-use crate::constants::MAX_RANK;
+use crate::constants::{
+    DECK_SIZE, EMPTY_HANDS_TO_END_GAME, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS,
+    HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
+};
 use crate::game::combo::Combo;
 use crate::game::play::Play;
 use crate::game::player::Player;
@@ -23,8 +26,7 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(player_uids: Vec<u8>, seed: Option<u64>) -> Self {
-        let cards: Vec<u8> = vec![1, 2, 3, 4, 5, 6];
-        let mut deck: Vec<u8> = cards.into_iter().cycle().take(60).collect();
+        let mut deck: Vec<u8> = (1..=MAX_RANK as u8).cycle().take(DECK_SIZE).collect();
 
         let mut rng = match seed {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -35,11 +37,13 @@ impl GameState {
         let mut players: Vec<Player> = player_uids.iter().map(|p| Player::new(*p)).collect();
 
         let initial_hand_size = match players.len() {
-            3..=4 => 14,
-            5 => 11,
-            6 => 9,
+            3 | 4 => HAND_SIZE_3_4_PLAYERS,
+            5 => HAND_SIZE_5_PLAYERS,
+            6 => HAND_SIZE_6_PLAYERS,
             _ => panic!(
-                "The game supports 3-6 players (inclusive). Received player uids vector of length {}",
+                "The game supports {}-{} players (inclusive). Received player uids vector of length {}",
+                MIN_PLAYERS,
+                MAX_PLAYERS,
                 players.len()
             ),
         };
@@ -201,7 +205,7 @@ impl GameState {
                     active_player_count -= 1;
                 }
             }
-            if active_player_count <= self.players.len() as u8 - 2 {
+            if active_player_count <= self.players.len() as u8 - EMPTY_HANDS_TO_END_GAME {
                 self.is_game_over = true;
                 return;
             }
@@ -222,7 +226,7 @@ impl GameState {
                     }),
                 }
             }
-            let mut next_round_points_candidates = [0u8; 2 * MAX_RANK + 1];
+            let mut next_round_points_candidates = [0u8; MAX_POINTS_VALUE + 1];
             for rank in 1..=MAX_RANK {
                 let pairs = total_counts[rank] / 2;
                 let singles = total_counts[rank] % 2;
@@ -230,7 +234,7 @@ impl GameState {
                 next_round_points_candidates[rank] += singles;
             }
             self.available_points.clear();
-            for value in (1..=12).rev() {
+            for value in (1..=MAX_POINTS_VALUE).rev() {
                 while next_round_points_candidates[value] > 0
                     && self.available_points.len() < self.active_player_count as usize
                 {
