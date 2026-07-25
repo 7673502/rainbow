@@ -90,11 +90,11 @@ mod tests {
                 prop_assert!(iterations < MAX_ITERATIONS);
             }
 
-            assert!(runner.state.get_is_game_over());
+            prop_assert!(runner.state.get_is_game_over());
         }
 
         #[test]
-        fn test_points_count(
+        fn test_available_points_count(
             deck_seed in any::<u64>(),
             agent_seeds in any::<[u64; 6]>(),
             num_players in 3..=6u8
@@ -108,8 +108,29 @@ mod tests {
 
                 let uid = runner.state.get_current_player_uid();
                 let view = runner.state.scrub_state(uid);
-                assert!(view.available_points.len() as u8 <= view.active_player_count);
+                prop_assert!(view.available_points.len() as u8 <= view.active_player_count);
             }
+        }
+
+        #[test]
+        fn test_final_point_bounds(
+            deck_seed in any::<u64>(),
+            agent_seeds in any::<[u64; 6]>(),
+            num_players in 3..=6u8
+        ) {
+            let participants = create_random_participants(&agent_seeds, num_players);
+            let mut runner = GameRunner::new(participants, Some(deck_seed));
+
+            runner.run_game();
+
+            let total_player_points: u32 = (0..num_players)
+                .map(|uid| runner.state.scrub_state(uid).my_points as u32)
+                .sum();
+
+            let max_theoretical_points = 60 + 50 + 40 + 30 + 20 + 10;
+
+            prop_assert!(total_player_points > 0);
+            prop_assert!(total_player_points < max_theoretical_points);
         }
     }
 }

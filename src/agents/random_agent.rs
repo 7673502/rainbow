@@ -28,3 +28,23 @@ impl Agent for RandomAgent {
         rng.random_range(0..valid_actions.len())
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::collection::vec;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_choose_action_valid_index(
+            seed in any::<u64>(),
+            valid_actions in vec(any::<Combo>(), 1..10),
+        ) {
+            let agent = RandomAgent::new(Some(seed));
+            let dummy_view = crate::game::game_state::GameState::new(vec![1, 2, 3], None).scrub_state(1);
+            let index = agent.choose_action(dummy_view, &valid_actions);
+
+            prop_assert!(index < valid_actions.len());
+        }
+    }
+}

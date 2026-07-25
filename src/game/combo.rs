@@ -99,10 +99,36 @@ mod tests {
         #[test]
         fn test_partial_ord_symmetry(a in any::<Combo>(), b in any::<Combo>()) {
             match a.partial_cmp(&b) {
-                Some(Ordering::Greater) => assert!(b < a),
-                Some(Ordering::Less) => assert!(b > a),
-                Some(Ordering::Equal) => assert!(b == a),
-                None => assert!(b.partial_cmp(&a).is_none()),
+                Some(Ordering::Greater) => prop_assert!(b < a),
+                Some(Ordering::Less) => prop_assert!(b > a),
+                Some(Ordering::Equal) => prop_assert!(b == a),
+                None => prop_assert!(b.partial_cmp(&a).is_none()),
+            }
+        }
+
+        #[test]
+        fn test_partial_ord_transitivity(
+            a in any::<Combo>(),
+            b in any::<Combo>(),
+            c in any::<Combo>()
+        ) {
+            if let (Some(ab), Some(bc)) = (a.partial_cmp(&b), b.partial_cmp(&c)) {
+                match (ab, bc) {
+                    (Ordering::Less, Ordering::Less)
+                    | (Ordering::Less, Ordering::Equal)
+                    | (Ordering::Equal, Ordering::Less) => {
+                        prop_assert_eq!(a.partial_cmp(&c), Some(Ordering::Less));
+                    }
+                    (Ordering::Greater, Ordering::Greater)
+                    | (Ordering::Greater, Ordering::Equal)
+                    | (Ordering::Equal, Ordering::Greater) => {
+                        prop_assert_eq!(a.partial_cmp(&c), Some(Ordering::Greater));
+                    }
+                    (Ordering::Equal, Ordering::Equal) => {
+                        prop_assert_eq!(a.partial_cmp(&c), Some(Ordering::Equal));
+                    }
+                    _ => {}
+                }
             }
         }
 
@@ -112,11 +138,11 @@ mod tests {
             let combo2 = Combo::Single { card: card2 };
 
             if card1 < card2 {
-                assert!(combo1 < combo2);
+                prop_assert!(combo1 < combo2);
             } else if card2 < card1 {
-                assert!(combo2 < combo1);
+                prop_assert!(combo2 < combo1);
             } else {
-                assert_eq!(combo1, combo2);
+                prop_assert_eq!(combo1, combo2);
             }
         }
 
@@ -129,15 +155,15 @@ mod tests {
             let combo2 = Combo::Set { card: card2, count: count2 };
 
             if count1 < count2 {
-                assert!(combo1 < combo2);
+                prop_assert!(combo1 < combo2);
             } else if count2 < count1 {
-                assert!(combo2 < combo1);
+                prop_assert!(combo2 < combo1);
             } else if card1 < card2 {
-                assert!(combo1 < combo2);
+                prop_assert!(combo1 < combo2);
             } else if card2 < card1 {
-                assert!(combo2 < combo1);
+                prop_assert!(combo2 < combo1);
             } else {
-                assert_eq!(combo1, combo2);
+                prop_assert_eq!(combo1, combo2);
             }
         }
 
@@ -156,16 +182,53 @@ mod tests {
             let combo2_len = end2 - start2 + 1;
 
             if combo1_len < combo2_len {
-                assert!(combo1 < combo2);
+                prop_assert!(combo1 < combo2);
             } else if combo2_len < combo1_len {
-                assert!(combo2 < combo1);
+                prop_assert!(combo2 < combo1);
             } else if end1 < end2 {
-                assert!(combo1 < combo2);
+                prop_assert!(combo1 < combo2);
             } else if end2 < end1 {
-                assert!(combo2 < combo1);
+                prop_assert!(combo2 < combo1);
             } else {
-                assert_eq!(combo1, combo2);
+                prop_assert_eq!(combo1, combo2);
             }
+        }
+
+        #[test]
+        fn test_single_vs_set_comparisons(
+            set_card in 1..=6u8, set_count in 1..=10u8,
+            single_card in 1..=6u8,
+        ) {
+            let single = Combo::Single { card: single_card };
+            let set = Combo::Set { card: set_card, count: set_count };
+
+            prop_assert!(single < set);
+            prop_assert!(set > single);
+        }
+
+        #[test]
+        fn test_single_vs_run_comparisons(
+            run_start in 1..=5u8, run_end in 2..=6u8,
+            single_card in 1..=6u8,
+        ) {
+            prop_assume!(run_start < run_end);
+            let single = Combo::Single { card: single_card };
+            let run = Combo::Run { start: run_start, end: run_end };
+
+            prop_assert!(single < run);
+            prop_assert!(run > single);
+        }
+
+        #[test]
+        fn test_set_vs_run_comparisons(
+            set_card in 1..=6u8, set_count in 1..=10u8,
+            run_start in 1..=5u8, run_end in 2..=6u8,
+        ) {
+            prop_assume!(run_start < run_end);
+            let set = Combo::Set { card: set_card, count: set_count };
+            let run = Combo::Run { start: run_start, end: run_end };
+
+            prop_assert_eq!(set.partial_cmp(&run), None);
         }
     }
 }
