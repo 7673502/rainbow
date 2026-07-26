@@ -35,10 +35,10 @@ impl GameRunner {
     }
 
     fn run_iteration(&mut self) -> bool {
-        let current_player_uid = self.state.get_current_player_uid();
+        let current_player_uid = self.state.current_player_uid();
         let current_agent = &self.agents[&current_player_uid];
 
-        let valid_actions = self.state.get_legal_actions(current_player_uid);
+        let valid_actions = self.state.legal_actions(current_player_uid);
         let scrubbed_state = self.state.scrub_state(current_player_uid);
 
         let choice_index = current_agent.choose_action(scrubbed_state, &valid_actions);
@@ -51,7 +51,7 @@ impl GameRunner {
         };
         self.state.apply_action(*chosen_combo);
 
-        self.state.get_is_game_over()
+        self.state.is_game_over()
     }
 }
 
@@ -90,7 +90,7 @@ mod tests {
                 prop_assert!(iterations < MAX_ITERATIONS);
             }
 
-            prop_assert!(runner.state.get_is_game_over());
+            prop_assert!(runner.state.is_game_over());
         }
 
         #[test]
@@ -106,7 +106,7 @@ mod tests {
             while !runner.run_iteration() && iterations < MAX_ITERATIONS {
                 iterations += 1;
 
-                let uid = runner.state.get_current_player_uid();
+                let uid = runner.state.current_player_uid();
                 let view = runner.state.scrub_state(uid);
                 prop_assert!(view.available_points.len() as u8 <= view.active_player_count);
             }

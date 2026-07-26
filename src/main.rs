@@ -12,5 +12,5 @@ fn main() {
 
     let final_state = runner.run_game();
 
-    println!("{}", final_state.get_is_game_over());
+    println!("{}", final_state.is_game_over());
 }

@@ -2,22 +2,22 @@ use std::cmp::Ordering;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Combo {
-    Single { card: u8 },
-    Set { card: u8, count: u8 },
+    Single { rank: u8 },
+    Set { rank: u8, count: u8 },
     Run { start: u8, end: u8 },
 }
 
 impl PartialEq for Combo {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Combo::Single { card: x }, Combo::Single { card: y }) => x == y,
+            (Combo::Single { rank: x }, Combo::Single { rank: y }) => x == y,
             (
                 Combo::Set {
-                    card: x,
+                    rank: x,
                     count: x_count,
                 },
                 Combo::Set {
-                    card: y,
+                    rank: y,
                     count: y_count,
                 },
             ) => x == y && x_count == y_count,
@@ -43,14 +43,14 @@ impl PartialOrd for Combo {
             (Combo::Single { .. }, Combo::Run { .. }) => Some(Ordering::Less),
             (Combo::Set { .. }, Combo::Single { .. }) => Some(Ordering::Greater),
             (Combo::Run { .. }, Combo::Single { .. }) => Some(Ordering::Greater),
-            (Combo::Single { card: x }, Combo::Single { card: y }) => x.partial_cmp(y),
+            (Combo::Single { rank: x }, Combo::Single { rank: y }) => x.partial_cmp(y),
             (
                 Combo::Set {
-                    card: x,
+                    rank: x,
                     count: x_count,
                 },
                 Combo::Set {
-                    card: y,
+                    rank: y,
                     count: y_count,
                 },
             ) => Some(x_count.cmp(y_count).then(x.cmp(y))),
@@ -85,8 +85,8 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
-                (1..=6u8).prop_map(|card| Combo::Single { card }),
-                (1..=6u8, 1..=10u8).prop_map(|(card, count)| Combo::Set { card, count }),
+                (1..=6u8).prop_map(|rank| Combo::Single { rank }),
+                (1..=6u8, 1..=10u8).prop_map(|(rank, count)| Combo::Set { rank, count }),
                 (1..=5u8).prop_flat_map(
                     |start| (start + 1..=6u8).prop_map(move |end| Combo::Run { start, end })
                 ),
@@ -133,13 +133,13 @@ mod tests {
         }
 
         #[test]
-        fn test_single_comparisons(card1 in 1..=6u8, card2 in 1..=6u8) {
-            let combo1 = Combo::Single { card: card1 };
-            let combo2 = Combo::Single { card: card2 };
+        fn test_single_comparisons(rank1 in 1..=6u8, rank2 in 1..=6u8) {
+            let combo1 = Combo::Single { rank: rank1 };
+            let combo2 = Combo::Single { rank: rank2 };
 
-            if card1 < card2 {
+            if rank1 < rank2 {
                 prop_assert!(combo1 < combo2);
-            } else if card2 < card1 {
+            } else if rank2 < rank1 {
                 prop_assert!(combo2 < combo1);
             } else {
                 prop_assert_eq!(combo1, combo2);
@@ -148,19 +148,19 @@ mod tests {
 
         #[test]
         fn test_set_comparisons(
-            card1 in 1..=6u8, count1 in 1..=10u8,
-            card2 in 1..=6u8, count2 in 1..=10u8,
+            rank1 in 1..=6u8, count1 in 1..=10u8,
+            rank2 in 1..=6u8, count2 in 1..=10u8,
         ) {
-            let combo1 = Combo::Set { card: card1, count: count1 };
-            let combo2 = Combo::Set { card: card2, count: count2 };
+            let combo1 = Combo::Set { rank: rank1, count: count1 };
+            let combo2 = Combo::Set { rank: rank2, count: count2 };
 
             if count1 < count2 {
                 prop_assert!(combo1 < combo2);
             } else if count2 < count1 {
                 prop_assert!(combo2 < combo1);
-            } else if card1 < card2 {
+            } else if rank1 < rank2 {
                 prop_assert!(combo1 < combo2);
-            } else if card2 < card1 {
+            } else if rank2 < rank1 {
                 prop_assert!(combo2 < combo1);
             } else {
                 prop_assert_eq!(combo1, combo2);
@@ -196,11 +196,11 @@ mod tests {
 
         #[test]
         fn test_single_vs_set_comparisons(
-            set_card in 1..=6u8, set_count in 1..=10u8,
-            single_card in 1..=6u8,
+            set_rank in 1..=6u8, set_count in 1..=10u8,
+            single_rank in 1..=6u8,
         ) {
-            let single = Combo::Single { card: single_card };
-            let set = Combo::Set { card: set_card, count: set_count };
+            let single = Combo::Single { rank: single_rank };
+            let set = Combo::Set { rank: set_rank, count: set_count };
 
             prop_assert!(single < set);
             prop_assert!(set > single);
@@ -209,10 +209,10 @@ mod tests {
         #[test]
         fn test_single_vs_run_comparisons(
             run_start in 1..=5u8, run_end in 2..=6u8,
-            single_card in 1..=6u8,
+            single_rank in 1..=6u8,
         ) {
             prop_assume!(run_start < run_end);
-            let single = Combo::Single { card: single_card };
+            let single = Combo::Single { rank: single_rank };
             let run = Combo::Run { start: run_start, end: run_end };
 
             prop_assert!(single < run);
@@ -221,11 +221,11 @@ mod tests {
 
         #[test]
         fn test_set_vs_run_comparisons(
-            set_card in 1..=6u8, set_count in 1..=10u8,
+            set_rank in 1..=6u8, set_count in 1..=10u8,
             run_start in 1..=5u8, run_end in 2..=6u8,
         ) {
             prop_assume!(run_start < run_end);
-            let set = Combo::Set { card: set_card, count: set_count };
+            let set = Combo::Set { rank: set_rank, count: set_count };
             let run = Combo::Run { start: run_start, end: run_end };
 
             prop_assert_eq!(set.partial_cmp(&run), None);

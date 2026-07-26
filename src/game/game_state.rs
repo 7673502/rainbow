@@ -76,25 +76,25 @@ impl GameState {
         }
     }
 
-    fn get_player(&self, player_uid: u8) -> &Player {
+    fn player_by_uid(&self, player_uid: u8) -> &Player {
         self.players
             .iter()
             .find(|p| p.uid == player_uid)
             .expect("Could not find player with given uid")
     }
 
-    pub fn get_legal_actions(&self, player_uid: u8) -> Vec<Combo> {
+    pub fn legal_actions(&self, player_uid: u8) -> Vec<Combo> {
         let mut combos = Vec::new();
 
-        let player = self.get_player(player_uid);
+        let player = self.player_by_uid(player_uid);
 
         for i in 1..=MAX_RANK {
             if player.hand[i] > 0 {
-                combos.push(Combo::Single { card: i as u8 });
+                combos.push(Combo::Single { rank: i as u8 });
                 if self.current_trick_type != TrickType::Run {
                     for j in 2..=player.hand[i] {
                         combos.push(Combo::Set {
-                            card: i as u8,
+                            rank: i as u8,
                             count: j,
                         });
                     }
@@ -117,21 +117,21 @@ impl GameState {
     }
 
     pub fn apply_action(&mut self, combo: Combo) {
-        let current_player_uid = self.get_current_player_uid();
+        let current_player_uid = self.current_player_uid();
 
         // update the player hand
         let current_player = &mut self.players[self.current_player_index as usize];
         match combo {
-            Combo::Single { card } => {
-                current_player.hand[card as usize] -= 1;
+            Combo::Single { rank } => {
+                current_player.hand[rank as usize] -= 1;
             }
-            Combo::Set { card, count } => {
-                current_player.hand[card as usize] -= count;
+            Combo::Set { rank, count } => {
+                current_player.hand[rank as usize] -= count;
                 self.current_trick_type = TrickType::Set;
             }
             Combo::Run { start, end } => {
-                (start..=end).for_each(|card| {
-                    current_player.hand[card as usize] -= 1;
+                (start..=end).for_each(|rank| {
+                    current_player.hand[rank as usize] -= 1;
                 });
                 self.current_trick_type = TrickType::Run;
             }
@@ -214,11 +214,11 @@ impl GameState {
             let mut total_counts = [0; MAX_RANK + 1];
             for play in &self.current_trick {
                 match play.combo {
-                    Combo::Single { card } => {
-                        total_counts[card as usize] += 1;
+                    Combo::Single { rank } => {
+                        total_counts[rank as usize] += 1;
                     }
-                    Combo::Set { card, count } => {
-                        total_counts[card as usize] += count;
+                    Combo::Set { rank, count } => {
+                        total_counts[rank as usize] += count;
                     }
                     Combo::Run { start, end } => (start..=end).for_each(|rank| {
                         total_counts[rank as usize] += 1;
@@ -249,7 +249,7 @@ impl GameState {
     }
 
     pub fn scrub_state(&self, player_uid: u8) -> GameView {
-        let player = self.get_player(player_uid);
+        let player = self.player_by_uid(player_uid);
 
         let mut opponents: Vec<OpponentView> = Vec::new();
 
@@ -278,11 +278,11 @@ impl GameState {
         }
     }
 
-    pub fn get_current_player_uid(&self) -> u8 {
+    pub fn current_player_uid(&self) -> u8 {
         self.players[self.current_player_index as usize].uid
     }
 
-    pub fn get_is_game_over(&self) -> bool {
+    pub fn is_game_over(&self) -> bool {
         self.is_game_over
     }
 }
@@ -307,97 +307,97 @@ mod tests {
     }
 
     #[test]
-    fn test_get_legal_actions_singles() {
+    fn test_legal_actions_singles() {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
             game.players[0].hand = [0, 2, 2, 0, 0, 0, 0];
             game.current_trick_type = TrickType::Run;
 
-            let legal_actions = game.get_legal_actions(1);
+            let legal_actions = game.legal_actions(1);
 
             assert_eq!(legal_actions.len(), 3);
-            assert!(legal_actions.contains(&Combo::Single { card: 1 }));
-            assert!(legal_actions.contains(&Combo::Single { card: 2 }));
-            assert!(!legal_actions.contains(&Combo::Single { card: 3 }));
-            assert!(!legal_actions.contains(&Combo::Single { card: 4 }));
-            assert!(!legal_actions.contains(&Combo::Single { card: 5 }));
-            assert!(!legal_actions.contains(&Combo::Single { card: 6 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 1 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 2 }));
+            assert!(!legal_actions.contains(&Combo::Single { rank: 3 }));
+            assert!(!legal_actions.contains(&Combo::Single { rank: 4 }));
+            assert!(!legal_actions.contains(&Combo::Single { rank: 5 }));
+            assert!(!legal_actions.contains(&Combo::Single { rank: 6 }));
         }
     }
 
     #[test]
-    fn test_get_legal_actions_sets() {
+    fn test_legal_actions_sets() {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
             game.players[0].hand = [0, 0, 3, 0, 3, 3, 0];
             game.current_trick_type = TrickType::Set;
 
-            let legal_actions = game.get_legal_actions(1);
+            let legal_actions = game.legal_actions(1);
 
             assert_eq!(legal_actions.len(), 9);
 
-            assert!(!legal_actions.contains(&Combo::Single { card: 1 }));
-            assert!(legal_actions.contains(&Combo::Single { card: 2 }));
-            assert!(!legal_actions.contains(&Combo::Single { card: 3 }));
-            assert!(legal_actions.contains(&Combo::Single { card: 4 }));
-            assert!(legal_actions.contains(&Combo::Single { card: 5 }));
-            assert!(!legal_actions.contains(&Combo::Single { card: 6 }));
+            assert!(!legal_actions.contains(&Combo::Single { rank: 1 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 2 }));
+            assert!(!legal_actions.contains(&Combo::Single { rank: 3 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 4 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 5 }));
+            assert!(!legal_actions.contains(&Combo::Single { rank: 6 }));
 
-            assert!(legal_actions.contains(&Combo::Set { card: 2, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { card: 2, count: 3 }));
-            assert!(legal_actions.contains(&Combo::Set { card: 4, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { card: 4, count: 3 }));
-            assert!(legal_actions.contains(&Combo::Set { card: 5, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { card: 5, count: 3 }));
+            assert!(legal_actions.contains(&Combo::Set { rank: 2, count: 2 }));
+            assert!(legal_actions.contains(&Combo::Set { rank: 2, count: 3 }));
+            assert!(legal_actions.contains(&Combo::Set { rank: 4, count: 2 }));
+            assert!(legal_actions.contains(&Combo::Set { rank: 4, count: 3 }));
+            assert!(legal_actions.contains(&Combo::Set { rank: 5, count: 2 }));
+            assert!(legal_actions.contains(&Combo::Set { rank: 5, count: 3 }));
 
             assert!(!legal_actions.contains(&Combo::Run { start: 4, end: 5 }));
-            assert!(!legal_actions.contains(&Combo::Set { card: 2, count: 1 }));
+            assert!(!legal_actions.contains(&Combo::Set { rank: 2, count: 1 }));
         }
     }
 
     #[test]
-    fn test_get_legal_actions_runs() {
+    fn test_legal_actions_runs() {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
             game.players[0].hand = [0, 2, 3, 1, 3, 0, 3];
             game.current_trick_type = TrickType::Run;
 
-            let legal_actions = game.get_legal_actions(1);
+            let legal_actions = game.legal_actions(1);
 
             assert_eq!(legal_actions.len(), 11);
 
-            assert!(legal_actions.contains(&Combo::Single { card: 1 }));
-            assert!(legal_actions.contains(&Combo::Single { card: 2 }));
-            assert!(legal_actions.contains(&Combo::Single { card: 3 }));
-            assert!(legal_actions.contains(&Combo::Single { card: 4 }));
-            assert!(!legal_actions.contains(&Combo::Single { card: 5 }));
-            assert!(legal_actions.contains(&Combo::Single { card: 6 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 1 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 2 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 3 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 4 }));
+            assert!(!legal_actions.contains(&Combo::Single { rank: 5 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 6 }));
 
             assert!(legal_actions.contains(&Combo::Run { start: 1, end: 4 }));
             assert!(!legal_actions.contains(&Combo::Run { start: 1, end: 5 }));
-            assert!(!legal_actions.contains(&Combo::Set { card: 4, count: 3 }))
+            assert!(!legal_actions.contains(&Combo::Set { rank: 4, count: 3 }))
         }
     }
 
     #[test]
-    fn test_get_legal_actions_open() {
+    fn test_legal_actions_open() {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
             game.players[0].hand = [0, 0, 0, 2, 2, 0, 0];
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            let legal_actions = game.get_legal_actions(1);
+            let legal_actions = game.legal_actions(1);
 
             assert_eq!(legal_actions.len(), 5);
 
-            assert!(legal_actions.contains(&Combo::Single { card: 3 }));
-            assert!(legal_actions.contains(&Combo::Single { card: 4 }));
-            assert!(legal_actions.contains(&Combo::Set { card: 3, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { card: 4, count: 2 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 3 }));
+            assert!(legal_actions.contains(&Combo::Single { rank: 4 }));
+            assert!(legal_actions.contains(&Combo::Set { rank: 3, count: 2 }));
+            assert!(legal_actions.contains(&Combo::Set { rank: 4, count: 2 }));
             assert!(legal_actions.contains(&Combo::Run { start: 3, end: 4 }));
         }
     }
@@ -410,7 +410,7 @@ mod tests {
             game.players[0].hand = [0, 0, 0, 0, 0, 2, 0];
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            game.apply_action(Combo::Single { card: 5 });
+            game.apply_action(Combo::Single { rank: 5 });
             assert_eq!(game.current_trick_type, TrickType::Open);
             assert_eq!(game.players[0].hand[5], 1);
         }
@@ -424,7 +424,7 @@ mod tests {
             game.players[0].hand = [0, 0, 0, 0, 0, 0, 3];
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            game.apply_action(Combo::Set { card: 6, count: 2 });
+            game.apply_action(Combo::Set { rank: 6, count: 2 });
             assert_eq!(game.current_trick_type, TrickType::Set);
             assert_eq!(game.players[0].hand[6], 1);
         }
@@ -458,7 +458,7 @@ mod tests {
             game.apply_action(Combo::Run { start: 1, end: 6 });
             for i in 1..num_players as usize {
                 game.players[i].hand = [0, 2, 2, 2, 2, 2, 2];
-                game.apply_action(Combo::Single { card: 2 });
+                game.apply_action(Combo::Single { rank: 2 });
             }
 
             assert_eq!(game.current_player_index, 1);
@@ -521,9 +521,9 @@ mod tests {
         game.players[2].hand[4] = 1;
 
         // play cards in turn order
-        game.apply_action(Combo::Single { card: 2 });
-        game.apply_action(Combo::Single { card: 5 });
-        game.apply_action(Combo::Single { card: 4 });
+        game.apply_action(Combo::Single { rank: 2 });
+        game.apply_action(Combo::Single { rank: 5 });
+        game.apply_action(Combo::Single { rank: 4 });
 
         // p2 played the 5, so p2 wins and goes next
         assert_eq!(game.current_player_index, 1);
@@ -543,9 +543,9 @@ mod tests {
         game.players[2].hand[6] = 1;
 
         // play the cards
-        game.apply_action(Combo::Single { card: 6 });
-        game.apply_action(Combo::Single { card: 4 });
-        game.apply_action(Combo::Single { card: 6 });
+        game.apply_action(Combo::Single { rank: 6 });
+        game.apply_action(Combo::Single { rank: 4 });
+        game.apply_action(Combo::Single { rank: 6 });
 
         // p1 played the 6 first, so p1 should win the tie
         assert_eq!(game.current_player_index, 0);
@@ -566,9 +566,9 @@ mod tests {
         game.players[2].hand[4] = 2;
 
         // play the cards
-        game.apply_action(Combo::Set { card: 3, count: 2 });
-        game.apply_action(Combo::Single { card: 4 });
-        game.apply_action(Combo::Single { card: 4 });
+        game.apply_action(Combo::Set { rank: 3, count: 2 });
+        game.apply_action(Combo::Single { rank: 4 });
+        game.apply_action(Combo::Single { rank: 4 });
 
         // the trick had two 3s and two 4s.
         println!("{:?}", game.available_points);
@@ -589,10 +589,10 @@ mod tests {
         game.players[2].hand[1] = 1;
         game.players[3].hand[1] = 3;
 
-        game.apply_action(Combo::Single { card: 1 });
-        game.apply_action(Combo::Single { card: 1 });
-        game.apply_action(Combo::Single { card: 1 });
-        game.apply_action(Combo::Single { card: 1 });
+        game.apply_action(Combo::Single { rank: 1 });
+        game.apply_action(Combo::Single { rank: 1 });
+        game.apply_action(Combo::Single { rank: 1 });
+        game.apply_action(Combo::Single { rank: 1 });
 
         assert!(game.is_game_over);
     }
