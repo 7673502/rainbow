@@ -43,7 +43,7 @@ impl PartialOrd for Combo {
             (Combo::Single { .. }, Combo::Run { .. }) => Some(Ordering::Less),
             (Combo::Set { .. }, Combo::Single { .. }) => Some(Ordering::Greater),
             (Combo::Run { .. }, Combo::Single { .. }) => Some(Ordering::Greater),
-            (Combo::Single { card: x }, Combo::Single { card: y }) => x.partial_cmp(&y),
+            (Combo::Single { card: x }, Combo::Single { card: y }) => x.partial_cmp(y),
             (
                 Combo::Set {
                     card: x,
@@ -53,7 +53,7 @@ impl PartialOrd for Combo {
                     card: y,
                     count: y_count,
                 },
-            ) => Some(x_count.cmp(&y_count).then(x.cmp(&y))),
+            ) => Some(x_count.cmp(y_count).then(x.cmp(y))),
             (
                 Combo::Run {
                     start: x_start,
@@ -66,7 +66,7 @@ impl PartialOrd for Combo {
             ) => {
                 let x_len = x_end - x_start + 1;
                 let y_len = y_end - y_start + 1;
-                Some(x_len.cmp(&y_len).then(x_end.cmp(&y_end)))
+                Some(x_len.cmp(&y_len).then(x_end.cmp(y_end)))
             }
             _ => None,
         }

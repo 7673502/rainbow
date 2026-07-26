@@ -63,7 +63,7 @@ impl GameState {
         }
 
         let mut available_points: Vec<u8> = deck.split_off(deck.len() - players.len());
-        available_points.sort_unstable_by(|a, b| b.cmp(&a));
+        available_points.sort_unstable_by(|a, b| b.cmp(a));
 
         Self {
             available_points,
@@ -77,8 +77,7 @@ impl GameState {
     }
 
     fn get_player(&self, player_uid: u8) -> &Player {
-        &self
-            .players
+        self.players
             .iter()
             .find(|p| p.uid == player_uid)
             .expect("Could not find player with given uid")
@@ -272,7 +271,7 @@ impl GameState {
             active_player_count: self.active_player_count,
 
             my_uid: player_uid,
-            my_hand: player.hand.clone(),
+            my_hand: player.hand,
             my_points: player.points,
 
             opponents,
@@ -284,7 +283,7 @@ impl GameState {
     }
 
     pub fn get_is_game_over(&self) -> bool {
-        return self.is_game_over;
+        self.is_game_over
     }
 }
 

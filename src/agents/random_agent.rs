@@ -23,7 +23,7 @@ impl RandomAgent {
 }
 
 impl Agent for RandomAgent {
-    fn choose_action(&self, _view: GameView, valid_actions: &Vec<Combo>) -> usize {
+    fn choose_action(&self, _view: GameView, valid_actions: &[Combo]) -> usize {
         let mut rng = self.rng.borrow_mut();
         rng.random_range(0..valid_actions.len())
     }
