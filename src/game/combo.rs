@@ -1,39 +1,10 @@
 use std::cmp::Ordering;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Combo {
     Single { rank: u8 },
     Set { rank: u8, count: u8 },
     Run { start: u8, end: u8 },
-}
-
-impl PartialEq for Combo {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Combo::Single { rank: x }, Combo::Single { rank: y }) => x == y,
-            (
-                Combo::Set {
-                    rank: x,
-                    count: x_count,
-                },
-                Combo::Set {
-                    rank: y,
-                    count: y_count,
-                },
-            ) => x == y && x_count == y_count,
-            (
-                Combo::Run {
-                    start: x_start,
-                    end: x_end,
-                },
-                Combo::Run {
-                    start: y_start,
-                    end: y_end,
-                },
-            ) => x_start == y_start && x_end == y_end,
-            _ => false,
-        }
-    }
 }
 
 impl PartialOrd for Combo {
