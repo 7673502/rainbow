@@ -79,7 +79,7 @@ impl GameState {
     fn player_by_uid(&self, player_uid: u8) -> &Player {
         self.players
             .iter()
-            .find(|p| p.uid == player_uid)
+            .find(|p| p.uid() == player_uid)
             .expect("Could not find player with given uid")
     }
 
@@ -159,7 +159,7 @@ impl GameState {
             self.current_player_index = self
                 .players
                 .iter()
-                .position(|p| p.uid == winner_uid)
+                .position(|p| p.uid() == winner_uid)
                 .unwrap() as u8;
             for _ in 0..self.players.len() {
                 if !self.players[self.current_player_index as usize].is_empty() {
@@ -176,7 +176,7 @@ impl GameState {
                 let player = self
                     .players
                     .iter_mut()
-                    .find(|p| p.uid == play.player_uid)
+                    .find(|p| p.uid() == play.player_uid)
                     .expect("Could not find player with given uid");
                 player.points += points;
             }
@@ -238,9 +238,9 @@ impl GameState {
         let mut opponents: Vec<OpponentView> = Vec::new();
 
         for p in &self.players {
-            if p.uid != player_uid {
+            if p.uid() != player_uid {
                 opponents.push(OpponentView {
-                    uid: p.uid,
+                    uid: p.uid(),
                     hand_size: p.hand_size(),
                     points: p.points,
                 });
@@ -263,7 +263,7 @@ impl GameState {
     }
 
     pub fn current_player_uid(&self) -> u8 {
-        self.players[self.current_player_index as usize].uid
+        self.players[self.current_player_index as usize].uid()
     }
 
     pub fn is_game_over(&self) -> bool {
@@ -478,7 +478,7 @@ mod tests {
                 let original_player = game
                     .players
                     .iter()
-                    .find(|p| p.uid == opponent_view.uid)
+                    .find(|p| p.uid() == opponent_view.uid)
                     .unwrap();
 
                 assert_eq!(opponent_view.hand_size, original_player.hand_size());
