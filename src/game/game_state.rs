@@ -7,7 +7,7 @@ use crate::constants::{
     DECK_SIZE, EMPTY_HANDS_TO_END_GAME, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS,
     HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
 };
-use crate::game::combo::Combo;
+use crate::game::combo::{Combo, ComboKind};
 use crate::game::play::Play;
 use crate::game::player::Player;
 use crate::game::trick_type::TrickType;
@@ -90,10 +90,10 @@ impl GameState {
 
         for i in 1..=MAX_RANK as u8 {
             if player.rank_count(i) > 0 {
-                combos.push(Combo::Single { rank: i });
+                combos.push(Combo::new_single(i));
                 if self.current_trick_type != TrickType::Run {
                     for j in 2..=player.rank_count(i) {
-                        combos.push(Combo::Set { rank: i, count: j });
+                        combos.push(Combo::new_set(i, j));
                     }
                 }
                 if self.current_trick_type != TrickType::Set {
@@ -101,7 +101,7 @@ impl GameState {
                         if player.rank_count(j) < 1 {
                             break;
                         }
-                        combos.push(Combo::Run { start: i, end: j });
+                        combos.push(Combo::new_run(i, j));
                     }
                 }
             }
@@ -115,15 +115,15 @@ impl GameState {
 
         // update the player hand
         let current_player = &mut self.players[self.current_player_index as usize];
-        match combo {
-            Combo::Single { rank } => {
+        match combo.kind() {
+            ComboKind::Single { rank } => {
                 current_player.remove_cards(rank, 1);
             }
-            Combo::Set { rank, count } => {
+            ComboKind::Set { rank, count } => {
                 current_player.remove_cards(rank, count);
                 self.current_trick_type = TrickType::Set;
             }
-            Combo::Run { start, end } => {
+            ComboKind::Run { start, end } => {
                 (start..=end).for_each(|rank| {
                     current_player.remove_cards(rank, 1);
                 });
@@ -197,14 +197,14 @@ impl GameState {
             // update next round's points
             let mut total_counts = [0; MAX_RANK + 1];
             for play in &self.current_trick {
-                match play.combo {
-                    Combo::Single { rank } => {
+                match play.combo.kind() {
+                    ComboKind::Single { rank } => {
                         total_counts[rank as usize] += 1;
                     }
-                    Combo::Set { rank, count } => {
+                    ComboKind::Set { rank, count } => {
                         total_counts[rank as usize] += count;
                     }
-                    Combo::Run { start, end } => (start..=end).for_each(|rank| {
+                    ComboKind::Run { start, end } => (start..=end).for_each(|rank| {
                         total_counts[rank as usize] += 1;
                     }),
                 }
@@ -301,12 +301,12 @@ mod tests {
             let legal_actions = game.legal_actions(1);
 
             assert_eq!(legal_actions.len(), 3);
-            assert!(legal_actions.contains(&Combo::Single { rank: 1 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 2 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 3 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 4 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 5 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 6 }));
+            assert!(legal_actions.contains(&Combo::new_single(1)));
+            assert!(legal_actions.contains(&Combo::new_single(2)));
+            assert!(!legal_actions.contains(&Combo::new_single(3)));
+            assert!(!legal_actions.contains(&Combo::new_single(4)));
+            assert!(!legal_actions.contains(&Combo::new_single(5)));
+            assert!(!legal_actions.contains(&Combo::new_single(6)));
         }
     }
 
@@ -322,22 +322,21 @@ mod tests {
 
             assert_eq!(legal_actions.len(), 9);
 
-            assert!(!legal_actions.contains(&Combo::Single { rank: 1 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 2 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 3 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 4 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 5 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 6 }));
+            assert!(!legal_actions.contains(&Combo::new_single(1)));
+            assert!(legal_actions.contains(&Combo::new_single(2)));
+            assert!(!legal_actions.contains(&Combo::new_single(3)));
+            assert!(legal_actions.contains(&Combo::new_single(4)));
+            assert!(legal_actions.contains(&Combo::new_single(5)));
+            assert!(!legal_actions.contains(&Combo::new_single(6)));
 
-            assert!(legal_actions.contains(&Combo::Set { rank: 2, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 2, count: 3 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 4, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 4, count: 3 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 5, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 5, count: 3 }));
+            assert!(legal_actions.contains(&Combo::new_set(2, 2)));
+            assert!(legal_actions.contains(&Combo::new_set(2, 3)));
+            assert!(legal_actions.contains(&Combo::new_set(4, 2)));
+            assert!(legal_actions.contains(&Combo::new_set(4, 3)));
+            assert!(legal_actions.contains(&Combo::new_set(5, 2)));
+            assert!(legal_actions.contains(&Combo::new_set(5, 3)));
 
-            assert!(!legal_actions.contains(&Combo::Run { start: 4, end: 5 }));
-            assert!(!legal_actions.contains(&Combo::Set { rank: 2, count: 1 }));
+            assert!(!legal_actions.contains(&Combo::new_run(4, 5)));
         }
     }
 
@@ -353,16 +352,15 @@ mod tests {
 
             assert_eq!(legal_actions.len(), 11);
 
-            assert!(legal_actions.contains(&Combo::Single { rank: 1 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 2 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 3 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 4 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 5 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 6 }));
+            assert!(legal_actions.contains(&Combo::new_single(1)));
+            assert!(legal_actions.contains(&Combo::new_single(2)));
+            assert!(legal_actions.contains(&Combo::new_single(3)));
+            assert!(legal_actions.contains(&Combo::new_single(4)));
+            assert!(!legal_actions.contains(&Combo::new_single(5)));
+            assert!(legal_actions.contains(&Combo::new_single(6)));
 
-            assert!(legal_actions.contains(&Combo::Run { start: 1, end: 4 }));
-            assert!(!legal_actions.contains(&Combo::Run { start: 1, end: 5 }));
-            assert!(!legal_actions.contains(&Combo::Set { rank: 4, count: 3 }))
+            assert!(legal_actions.contains(&Combo::new_run(1, 4)));
+            assert!(!legal_actions.contains(&Combo::new_run(1, 5)));
         }
     }
 
@@ -378,11 +376,8 @@ mod tests {
 
             assert_eq!(legal_actions.len(), 5);
 
-            assert!(legal_actions.contains(&Combo::Single { rank: 3 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 4 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 3, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 4, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Run { start: 3, end: 4 }));
+            assert!(legal_actions.contains(&Combo::new_single(3)));
+            assert!(legal_actions.contains(&Combo::new_single(4)));
         }
     }
 
@@ -394,7 +389,7 @@ mod tests {
             game.players[0].set_hand([0, 0, 0, 0, 0, 2, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            game.apply_action(Combo::Single { rank: 5 });
+            game.apply_action(Combo::new_single(5));
             assert_eq!(game.current_trick_type, TrickType::Open);
             assert_eq!(game.players[0].rank_count(5), 1);
         }
@@ -408,7 +403,7 @@ mod tests {
             game.players[0].set_hand([0, 0, 0, 0, 0, 0, 3]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            game.apply_action(Combo::Set { rank: 6, count: 2 });
+            game.apply_action(Combo::new_set(6, 2));
             assert_eq!(game.current_trick_type, TrickType::Set);
             assert_eq!(game.players[0].rank_count(6), 1);
         }
@@ -422,7 +417,7 @@ mod tests {
             game.players[0].set_hand([0, 1, 2, 1, 1, 0, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            game.apply_action(Combo::Run { start: 1, end: 4 });
+            game.apply_action(Combo::new_run(1, 4));
             assert_eq!(game.current_trick_type, TrickType::Run);
             assert_eq!(game.players[0].rank_count(1), 0);
             assert_eq!(game.players[0].rank_count(2), 1);
@@ -439,10 +434,10 @@ mod tests {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
             game.players[0].set_hand([0, 1, 1, 1, 1, 1, 1]);
-            game.apply_action(Combo::Run { start: 1, end: 6 });
+            game.apply_action(Combo::new_run(1, 6));
             for i in 1..num_players as usize {
                 game.players[i].set_hand([0, 2, 2, 2, 2, 2, 2]);
-                game.apply_action(Combo::Single { rank: 2 });
+                game.apply_action(Combo::new_single(2));
             }
 
             assert_eq!(game.current_player_index, 1);
@@ -502,9 +497,9 @@ mod tests {
         game.players[2].set_hand([0, 1, 0, 0, 1, 0, 0]);
 
         // play cards in turn order
-        game.apply_action(Combo::Single { rank: 2 });
-        game.apply_action(Combo::Single { rank: 5 });
-        game.apply_action(Combo::Single { rank: 4 });
+        game.apply_action(Combo::new_single(2));
+        game.apply_action(Combo::new_single(5));
+        game.apply_action(Combo::new_single(4));
 
         // p2 played the 5, so p2 wins and goes next
         assert_eq!(game.current_player_index, 1);
@@ -524,9 +519,9 @@ mod tests {
         game.players[2].set_hand([0, 1, 0, 0, 0, 0, 1]);
 
         // play the cards
-        game.apply_action(Combo::Single { rank: 6 });
-        game.apply_action(Combo::Single { rank: 4 });
-        game.apply_action(Combo::Single { rank: 6 });
+        game.apply_action(Combo::new_single(6));
+        game.apply_action(Combo::new_single(4));
+        game.apply_action(Combo::new_single(6));
 
         // p1 played the 6 first, so p1 should win the tie
         assert_eq!(game.current_player_index, 0);
@@ -547,9 +542,9 @@ mod tests {
         game.players[2].set_hand([0, 1, 0, 0, 2, 0, 0]);
 
         // play the cards
-        game.apply_action(Combo::Set { rank: 3, count: 2 });
-        game.apply_action(Combo::Single { rank: 4 });
-        game.apply_action(Combo::Single { rank: 4 });
+        game.apply_action(Combo::new_set(3, 2));
+        game.apply_action(Combo::new_single(4));
+        game.apply_action(Combo::new_single(4));
 
         // the trick had two 3s and two 4s.
         println!("{:?}", game.available_points);
@@ -570,10 +565,10 @@ mod tests {
         game.players[2].set_hand([0, 1, 0, 0, 0, 0, 0]);
         game.players[3].set_hand([0, 3, 0, 0, 0, 0, 0]);
 
-        game.apply_action(Combo::Single { rank: 1 });
-        game.apply_action(Combo::Single { rank: 1 });
-        game.apply_action(Combo::Single { rank: 1 });
-        game.apply_action(Combo::Single { rank: 1 });
+        game.apply_action(Combo::new_single(1));
+        game.apply_action(Combo::new_single(1));
+        game.apply_action(Combo::new_single(1));
+        game.apply_action(Combo::new_single(1));
 
         assert!(game.is_game_over);
     }
