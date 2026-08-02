@@ -7,7 +7,7 @@ use crate::constants::{
     DECK_SIZE, EMPTY_HANDS_TO_END_GAME, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS,
     HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
 };
-use crate::game::combo::Combo;
+use crate::game::combo::{Combo, ComboKind};
 use crate::game::play::Play;
 use crate::game::player::Player;
 use crate::game::trick_type::TrickType;
@@ -58,7 +58,7 @@ impl GameState {
 
             let hand_vec = deck.split_off(deck.len() - initial_hand_size);
             for j in hand_vec {
-                players[i].hand[j as usize] += 1;
+                players[i].add_cards(j, 1);
             }
         }
 
@@ -79,7 +79,7 @@ impl GameState {
     fn player_by_uid(&self, player_uid: u8) -> &Player {
         self.players
             .iter()
-            .find(|p| p.uid == player_uid)
+            .find(|p| p.uid() == player_uid)
             .expect("Could not find player with given uid")
     }
 
@@ -88,26 +88,20 @@ impl GameState {
 
         let player = self.player_by_uid(player_uid);
 
-        for i in 1..=MAX_RANK {
-            if player.hand[i] > 0 {
-                combos.push(Combo::Single { rank: i as u8 });
+        for i in 1..=MAX_RANK as u8 {
+            if player.rank_count(i) > 0 {
+                combos.push(Combo::new_single(i));
                 if self.current_trick_type != TrickType::Run {
-                    for j in 2..=player.hand[i] {
-                        combos.push(Combo::Set {
-                            rank: i as u8,
-                            count: j,
-                        });
+                    for j in 2..=player.rank_count(i) {
+                        combos.push(Combo::new_set(i, j));
                     }
                 }
                 if self.current_trick_type != TrickType::Set {
-                    for j in i + 1..=MAX_RANK {
-                        if player.hand[j] < 1 {
+                    for j in i + 1..=MAX_RANK as u8 {
+                        if player.rank_count(j) < 1 {
                             break;
                         }
-                        combos.push(Combo::Run {
-                            start: i as u8,
-                            end: j as u8,
-                        });
+                        combos.push(Combo::new_run(i, j));
                     }
                 }
             }
@@ -121,17 +115,17 @@ impl GameState {
 
         // update the player hand
         let current_player = &mut self.players[self.current_player_index as usize];
-        match combo {
-            Combo::Single { rank } => {
-                current_player.hand[rank as usize] -= 1;
+        match combo.kind() {
+            ComboKind::Single { rank } => {
+                current_player.remove_cards(rank, 1);
             }
-            Combo::Set { rank, count } => {
-                current_player.hand[rank as usize] -= count;
+            ComboKind::Set { rank, count } => {
+                current_player.remove_cards(rank, count);
                 self.current_trick_type = TrickType::Set;
             }
-            Combo::Run { start, end } => {
+            ComboKind::Run { start, end } => {
                 (start..=end).for_each(|rank| {
-                    current_player.hand[rank as usize] -= 1;
+                    current_player.remove_cards(rank, 1);
                 });
                 self.current_trick_type = TrickType::Run;
             }
@@ -147,12 +141,7 @@ impl GameState {
         // update current player
         for _ in 0..self.players.len() {
             self.current_player_index = (self.current_player_index + 1) % self.players.len() as u8;
-            if self.players[self.current_player_index as usize]
-                .hand
-                .iter()
-                .sum::<u8>()
-                > 0
-            {
+            if !self.players[self.current_player_index as usize].is_empty() {
                 break;
             }
         }
@@ -170,15 +159,10 @@ impl GameState {
             self.current_player_index = self
                 .players
                 .iter()
-                .position(|p| p.uid == winner_uid)
+                .position(|p| p.uid() == winner_uid)
                 .unwrap() as u8;
             for _ in 0..self.players.len() {
-                if self.players[self.current_player_index as usize]
-                    .hand
-                    .iter()
-                    .sum::<u8>()
-                    > 0
-                {
+                if !self.players[self.current_player_index as usize].is_empty() {
                     break;
                 }
                 self.current_player_index =
@@ -192,15 +176,15 @@ impl GameState {
                 let player = self
                     .players
                     .iter_mut()
-                    .find(|p| p.uid == play.player_uid)
+                    .find(|p| p.uid() == play.player_uid)
                     .expect("Could not find player with given uid");
-                player.points += points;
+                player.add_points(points);
             }
 
             // check if game is over
             let mut active_player_count = self.players.len() as u8;
             for p in &self.players {
-                if p.hand.iter().sum::<u8>() == 0 {
+                if p.is_empty() {
                     active_player_count -= 1;
                 }
             }
@@ -213,14 +197,14 @@ impl GameState {
             // update next round's points
             let mut total_counts = [0; MAX_RANK + 1];
             for play in &self.current_trick {
-                match play.combo {
-                    Combo::Single { rank } => {
+                match play.combo.kind() {
+                    ComboKind::Single { rank } => {
                         total_counts[rank as usize] += 1;
                     }
-                    Combo::Set { rank, count } => {
+                    ComboKind::Set { rank, count } => {
                         total_counts[rank as usize] += count;
                     }
-                    Combo::Run { start, end } => (start..=end).for_each(|rank| {
+                    ComboKind::Run { start, end } => (start..=end).for_each(|rank| {
                         total_counts[rank as usize] += 1;
                     }),
                 }
@@ -254,11 +238,11 @@ impl GameState {
         let mut opponents: Vec<OpponentView> = Vec::new();
 
         for p in &self.players {
-            if p.uid != player_uid {
+            if p.uid() != player_uid {
                 opponents.push(OpponentView {
-                    uid: p.uid,
-                    hand_size: p.hand.iter().sum::<u8>(),
-                    points: p.points,
+                    uid: p.uid(),
+                    hand_size: p.hand_size(),
+                    points: p.points(),
                 });
             }
         }
@@ -271,15 +255,15 @@ impl GameState {
             active_player_count: self.active_player_count,
 
             my_uid: player_uid,
-            my_hand: player.hand,
-            my_points: player.points,
+            my_hand: player.hand(),
+            my_points: player.points(),
 
             opponents,
         }
     }
 
     pub fn current_player_uid(&self) -> u8 {
-        self.players[self.current_player_index as usize].uid
+        self.players[self.current_player_index as usize].uid()
     }
 
     pub fn is_game_over(&self) -> bool {
@@ -311,18 +295,18 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].hand = [0, 2, 2, 0, 0, 0, 0];
+            game.players[0].set_hand([0, 2, 2, 0, 0, 0, 0]);
             game.current_trick_type = TrickType::Run;
 
             let legal_actions = game.legal_actions(1);
 
             assert_eq!(legal_actions.len(), 3);
-            assert!(legal_actions.contains(&Combo::Single { rank: 1 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 2 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 3 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 4 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 5 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 6 }));
+            assert!(legal_actions.contains(&Combo::new_single(1)));
+            assert!(legal_actions.contains(&Combo::new_single(2)));
+            assert!(!legal_actions.contains(&Combo::new_single(3)));
+            assert!(!legal_actions.contains(&Combo::new_single(4)));
+            assert!(!legal_actions.contains(&Combo::new_single(5)));
+            assert!(!legal_actions.contains(&Combo::new_single(6)));
         }
     }
 
@@ -331,29 +315,28 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].hand = [0, 0, 3, 0, 3, 3, 0];
+            game.players[0].set_hand([0, 0, 3, 0, 3, 3, 0]);
             game.current_trick_type = TrickType::Set;
 
             let legal_actions = game.legal_actions(1);
 
             assert_eq!(legal_actions.len(), 9);
 
-            assert!(!legal_actions.contains(&Combo::Single { rank: 1 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 2 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 3 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 4 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 5 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 6 }));
+            assert!(!legal_actions.contains(&Combo::new_single(1)));
+            assert!(legal_actions.contains(&Combo::new_single(2)));
+            assert!(!legal_actions.contains(&Combo::new_single(3)));
+            assert!(legal_actions.contains(&Combo::new_single(4)));
+            assert!(legal_actions.contains(&Combo::new_single(5)));
+            assert!(!legal_actions.contains(&Combo::new_single(6)));
 
-            assert!(legal_actions.contains(&Combo::Set { rank: 2, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 2, count: 3 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 4, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 4, count: 3 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 5, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 5, count: 3 }));
+            assert!(legal_actions.contains(&Combo::new_set(2, 2)));
+            assert!(legal_actions.contains(&Combo::new_set(2, 3)));
+            assert!(legal_actions.contains(&Combo::new_set(4, 2)));
+            assert!(legal_actions.contains(&Combo::new_set(4, 3)));
+            assert!(legal_actions.contains(&Combo::new_set(5, 2)));
+            assert!(legal_actions.contains(&Combo::new_set(5, 3)));
 
-            assert!(!legal_actions.contains(&Combo::Run { start: 4, end: 5 }));
-            assert!(!legal_actions.contains(&Combo::Set { rank: 2, count: 1 }));
+            assert!(!legal_actions.contains(&Combo::new_run(4, 5)));
         }
     }
 
@@ -362,23 +345,22 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].hand = [0, 2, 3, 1, 3, 0, 3];
+            game.players[0].set_hand([0, 2, 3, 1, 3, 0, 3]);
             game.current_trick_type = TrickType::Run;
 
             let legal_actions = game.legal_actions(1);
 
             assert_eq!(legal_actions.len(), 11);
 
-            assert!(legal_actions.contains(&Combo::Single { rank: 1 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 2 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 3 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 4 }));
-            assert!(!legal_actions.contains(&Combo::Single { rank: 5 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 6 }));
+            assert!(legal_actions.contains(&Combo::new_single(1)));
+            assert!(legal_actions.contains(&Combo::new_single(2)));
+            assert!(legal_actions.contains(&Combo::new_single(3)));
+            assert!(legal_actions.contains(&Combo::new_single(4)));
+            assert!(!legal_actions.contains(&Combo::new_single(5)));
+            assert!(legal_actions.contains(&Combo::new_single(6)));
 
-            assert!(legal_actions.contains(&Combo::Run { start: 1, end: 4 }));
-            assert!(!legal_actions.contains(&Combo::Run { start: 1, end: 5 }));
-            assert!(!legal_actions.contains(&Combo::Set { rank: 4, count: 3 }))
+            assert!(legal_actions.contains(&Combo::new_run(1, 4)));
+            assert!(!legal_actions.contains(&Combo::new_run(1, 5)));
         }
     }
 
@@ -387,18 +369,15 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].hand = [0, 0, 0, 2, 2, 0, 0];
+            game.players[0].set_hand([0, 0, 0, 2, 2, 0, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
             let legal_actions = game.legal_actions(1);
 
             assert_eq!(legal_actions.len(), 5);
 
-            assert!(legal_actions.contains(&Combo::Single { rank: 3 }));
-            assert!(legal_actions.contains(&Combo::Single { rank: 4 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 3, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Set { rank: 4, count: 2 }));
-            assert!(legal_actions.contains(&Combo::Run { start: 3, end: 4 }));
+            assert!(legal_actions.contains(&Combo::new_single(3)));
+            assert!(legal_actions.contains(&Combo::new_single(4)));
         }
     }
 
@@ -407,12 +386,12 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].hand = [0, 0, 0, 0, 0, 2, 0];
+            game.players[0].set_hand([0, 0, 0, 0, 0, 2, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            game.apply_action(Combo::Single { rank: 5 });
+            game.apply_action(Combo::new_single(5));
             assert_eq!(game.current_trick_type, TrickType::Open);
-            assert_eq!(game.players[0].hand[5], 1);
+            assert_eq!(game.players[0].rank_count(5), 1);
         }
     }
 
@@ -421,12 +400,12 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].hand = [0, 0, 0, 0, 0, 0, 3];
+            game.players[0].set_hand([0, 0, 0, 0, 0, 0, 3]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            game.apply_action(Combo::Set { rank: 6, count: 2 });
+            game.apply_action(Combo::new_set(6, 2));
             assert_eq!(game.current_trick_type, TrickType::Set);
-            assert_eq!(game.players[0].hand[6], 1);
+            assert_eq!(game.players[0].rank_count(6), 1);
         }
     }
 
@@ -435,17 +414,17 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].hand = [0, 1, 2, 1, 1, 0, 0];
+            game.players[0].set_hand([0, 1, 2, 1, 1, 0, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            game.apply_action(Combo::Run { start: 1, end: 4 });
+            game.apply_action(Combo::new_run(1, 4));
             assert_eq!(game.current_trick_type, TrickType::Run);
-            assert_eq!(game.players[0].hand[1], 0);
-            assert_eq!(game.players[0].hand[2], 1);
-            assert_eq!(game.players[0].hand[3], 0);
-            assert_eq!(game.players[0].hand[4], 0);
-            assert_eq!(game.players[0].hand[5], 0);
-            assert_eq!(game.players[0].hand[6], 0);
+            assert_eq!(game.players[0].rank_count(1), 0);
+            assert_eq!(game.players[0].rank_count(2), 1);
+            assert_eq!(game.players[0].rank_count(3), 0);
+            assert_eq!(game.players[0].rank_count(4), 0);
+            assert_eq!(game.players[0].rank_count(5), 0);
+            assert_eq!(game.players[0].rank_count(6), 0);
         }
     }
 
@@ -454,11 +433,11 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].hand = [0, 1, 1, 1, 1, 1, 1];
-            game.apply_action(Combo::Run { start: 1, end: 6 });
+            game.players[0].set_hand([0, 1, 1, 1, 1, 1, 1]);
+            game.apply_action(Combo::new_run(1, 6));
             for i in 1..num_players as usize {
-                game.players[i].hand = [0, 2, 2, 2, 2, 2, 2];
-                game.apply_action(Combo::Single { rank: 2 });
+                game.players[i].set_hand([0, 2, 2, 2, 2, 2, 2]);
+                game.apply_action(Combo::new_single(2));
             }
 
             assert_eq!(game.current_player_index, 1);
@@ -473,7 +452,7 @@ mod tests {
 
             // give players specific points to differentiate them
             for (i, p) in game.players.iter_mut().enumerate() {
-                p.points = (i as u8 + 1) * 10;
+                p.add_points((i as u8 + 1) * 10);
             }
 
             let my_uid = 1;
@@ -482,7 +461,7 @@ mod tests {
             // verify personal data is fully intact
             assert_eq!(view.my_uid, my_uid);
             assert_eq!(view.my_points, 10); // Player 1 (index 0) gets 10 points
-            assert_eq!(view.my_hand, game.players[0].hand);
+            assert_eq!(view.my_hand, game.players[0].hand());
 
             // verify global state is correctly copied
             assert_eq!(view.available_points, game.available_points);
@@ -499,14 +478,11 @@ mod tests {
                 let original_player = game
                     .players
                     .iter()
-                    .find(|p| p.uid == opponent_view.uid)
+                    .find(|p| p.uid() == opponent_view.uid)
                     .unwrap();
 
-                assert_eq!(
-                    opponent_view.hand_size,
-                    original_player.hand.iter().sum::<u8>()
-                );
-                assert_eq!(opponent_view.points, original_player.points);
+                assert_eq!(opponent_view.hand_size, original_player.hand_size());
+                assert_eq!(opponent_view.points, original_player.points());
             }
         }
     }
@@ -516,14 +492,14 @@ mod tests {
         let mut game = GameState::new(vec![1, 2, 3], Some(42));
 
         // give players specific cards
-        game.players[0].hand[2] = 1;
-        game.players[1].hand[5] = 1;
-        game.players[2].hand[4] = 1;
+        game.players[0].set_hand([0, 1, 1, 0, 0, 0, 0]);
+        game.players[1].set_hand([0, 1, 0, 0, 0, 1, 0]);
+        game.players[2].set_hand([0, 1, 0, 0, 1, 0, 0]);
 
         // play cards in turn order
-        game.apply_action(Combo::Single { rank: 2 });
-        game.apply_action(Combo::Single { rank: 5 });
-        game.apply_action(Combo::Single { rank: 4 });
+        game.apply_action(Combo::new_single(2));
+        game.apply_action(Combo::new_single(5));
+        game.apply_action(Combo::new_single(4));
 
         // p2 played the 5, so p2 wins and goes next
         assert_eq!(game.current_player_index, 1);
@@ -538,14 +514,14 @@ mod tests {
         let mut game = GameState::new(vec![1, 2, 3], Some(42));
 
         // give players cards with a tie for highest
-        game.players[0].hand[6] = 1;
-        game.players[1].hand[4] = 1;
-        game.players[2].hand[6] = 1;
+        game.players[0].set_hand([0, 1, 0, 0, 0, 0, 1]);
+        game.players[1].set_hand([0, 1, 0, 0, 1, 0, 0]);
+        game.players[2].set_hand([0, 1, 0, 0, 0, 0, 1]);
 
         // play the cards
-        game.apply_action(Combo::Single { rank: 6 });
-        game.apply_action(Combo::Single { rank: 4 });
-        game.apply_action(Combo::Single { rank: 6 });
+        game.apply_action(Combo::new_single(6));
+        game.apply_action(Combo::new_single(4));
+        game.apply_action(Combo::new_single(6));
 
         // p1 played the 6 first, so p1 should win the tie
         assert_eq!(game.current_player_index, 0);
@@ -557,18 +533,18 @@ mod tests {
 
         // empty hands to control exactly what is played
         for p in &mut game.players {
-            p.hand = [0; MAX_RANK + 1];
+            p.set_hand([0; MAX_RANK + 1]);
         }
 
         // setup players so they can play two 3s and two 4s total
-        game.players[0].hand[3] = 3;
-        game.players[1].hand[4] = 2;
-        game.players[2].hand[4] = 2;
+        game.players[0].set_hand([0, 1, 0, 3, 0, 0, 0]);
+        game.players[1].set_hand([0, 1, 0, 0, 2, 0, 0]);
+        game.players[2].set_hand([0, 1, 0, 0, 2, 0, 0]);
 
         // play the cards
-        game.apply_action(Combo::Set { rank: 3, count: 2 });
-        game.apply_action(Combo::Single { rank: 4 });
-        game.apply_action(Combo::Single { rank: 4 });
+        game.apply_action(Combo::new_set(3, 2));
+        game.apply_action(Combo::new_single(4));
+        game.apply_action(Combo::new_single(4));
 
         // the trick had two 3s and two 4s.
         println!("{:?}", game.available_points);
@@ -581,18 +557,18 @@ mod tests {
         let mut game = GameState::new(vec![1, 2, 3, 4], Some(42));
 
         for i in 0..4 {
-            game.players[i].hand = [0; MAX_RANK + 1];
+            game.players[i].set_hand([0; MAX_RANK + 1]);
         }
 
-        game.players[0].hand[1] = 1;
-        game.players[1].hand[1] = 2;
-        game.players[2].hand[1] = 1;
-        game.players[3].hand[1] = 3;
+        game.players[0].set_hand([0, 1, 0, 0, 0, 0, 0]);
+        game.players[1].set_hand([0, 2, 0, 0, 0, 0, 0]);
+        game.players[2].set_hand([0, 1, 0, 0, 0, 0, 0]);
+        game.players[3].set_hand([0, 3, 0, 0, 0, 0, 0]);
 
-        game.apply_action(Combo::Single { rank: 1 });
-        game.apply_action(Combo::Single { rank: 1 });
-        game.apply_action(Combo::Single { rank: 1 });
-        game.apply_action(Combo::Single { rank: 1 });
+        game.apply_action(Combo::new_single(1));
+        game.apply_action(Combo::new_single(1));
+        game.apply_action(Combo::new_single(1));
+        game.apply_action(Combo::new_single(1));
 
         assert!(game.is_game_over);
     }
