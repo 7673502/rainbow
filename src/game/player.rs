@@ -4,7 +4,7 @@ use crate::constants::{MAX_COUNT_PER_RANK, MAX_RANK, check_count, check_rank};
 pub struct Player {
     uid: u8,
     hand: [u8; MAX_RANK + 1],
-    pub points: u8,
+    points: u8,
 }
 
 impl Player {
@@ -18,6 +18,14 @@ impl Player {
 
     pub fn uid(&self) -> u8 {
         self.uid
+    }
+
+    pub fn points(&self) -> u8 {
+        self.points
+    }
+
+    pub fn add_points(&mut self, points: u8) {
+        self.points += points;
     }
 
     pub fn hand(&self) -> [u8; MAX_RANK + 1] {

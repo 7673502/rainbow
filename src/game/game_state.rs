@@ -178,7 +178,7 @@ impl GameState {
                     .iter_mut()
                     .find(|p| p.uid() == play.player_uid)
                     .expect("Could not find player with given uid");
-                player.points += points;
+                player.add_points(points);
             }
 
             // check if game is over
@@ -242,7 +242,7 @@ impl GameState {
                 opponents.push(OpponentView {
                     uid: p.uid(),
                     hand_size: p.hand_size(),
-                    points: p.points,
+                    points: p.points(),
                 });
             }
         }
@@ -256,7 +256,7 @@ impl GameState {
 
             my_uid: player_uid,
             my_hand: player.hand(),
-            my_points: player.points,
+            my_points: player.points(),
 
             opponents,
         }
@@ -452,7 +452,7 @@ mod tests {
 
             // give players specific points to differentiate them
             for (i, p) in game.players.iter_mut().enumerate() {
-                p.points = (i as u8 + 1) * 10;
+                p.add_points((i as u8 + 1) * 10);
             }
 
             let my_uid = 1;
@@ -482,7 +482,7 @@ mod tests {
                     .unwrap();
 
                 assert_eq!(opponent_view.hand_size, original_player.hand_size());
-                assert_eq!(opponent_view.points, original_player.points);
+                assert_eq!(opponent_view.points, original_player.points());
             }
         }
     }
