@@ -4,6 +4,12 @@ use std::ops::{Index, IndexMut};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RankMap([u8; MAX_RANK]);
 
+impl Default for RankMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RankMap {
     pub fn new() -> Self {
         RankMap([0; MAX_RANK])

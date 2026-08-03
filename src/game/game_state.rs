@@ -222,7 +222,7 @@ impl GameState {
                 while next_round_points_candidates[value] > 0
                     && self.available_points.len() < self.active_player_count as usize
                 {
-                    self.available_points.push(value as u8);
+                    self.available_points.push(value);
                     next_round_points_candidates[value] -= 1;
                 }
             }
