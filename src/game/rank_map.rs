@@ -1,7 +1,8 @@
 use crate::constants::MAX_RANK;
 use std::ops::{Index, IndexMut};
 
-pub(crate) struct RankMap([u8; MAX_RANK]);
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RankMap([u8; MAX_RANK]);
 
 impl RankMap {
     pub(crate) fn new() -> Self {
