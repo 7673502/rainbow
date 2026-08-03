@@ -1,5 +1,5 @@
+use crate::game::maps::RankMap;
 use crate::game::play::Play;
-use crate::game::rank_map::RankMap;
 use crate::game::trick_type::TrickType;
 
 #[derive(Debug)]

@@ -8,9 +8,9 @@ use crate::constants::{
     HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
 };
 use crate::game::combo::{Combo, ComboKind};
+use crate::game::maps::{PointMap, RankMap};
 use crate::game::play::Play;
 use crate::game::player::Player;
-use crate::game::rank_map::RankMap;
 use crate::game::trick_type::TrickType;
 use crate::game::view::{GameView, OpponentView};
 
@@ -210,20 +210,20 @@ impl GameState {
                     }),
                 }
             }
-            let mut next_round_points_candidates = [0u8; MAX_POINTS_VALUE];
-            for rank in 1..=MAX_RANK {
-                let pairs = total_counts[rank as u8] / 2;
-                let singles = total_counts[rank as u8] % 2;
-                next_round_points_candidates[rank * 2 - 1] += pairs;
-                next_round_points_candidates[rank - 1] += singles;
+            let mut next_round_points_candidates = PointMap::new();
+            for rank in 1..=MAX_RANK as u8 {
+                let pairs = total_counts[rank] / 2;
+                let singles = total_counts[rank] % 2;
+                next_round_points_candidates[rank * 2] += pairs;
+                next_round_points_candidates[rank] += singles;
             }
             self.available_points.clear();
-            for value in (1..=MAX_POINTS_VALUE).rev() {
-                while next_round_points_candidates[value - 1] > 0
+            for value in (1..=MAX_POINTS_VALUE as u8).rev() {
+                while next_round_points_candidates[value] > 0
                     && self.available_points.len() < self.active_player_count as usize
                 {
                     self.available_points.push(value as u8);
-                    next_round_points_candidates[value - 1] -= 1;
+                    next_round_points_candidates[value] -= 1;
                 }
             }
 

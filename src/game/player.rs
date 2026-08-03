@@ -1,5 +1,5 @@
 use crate::constants::{MAX_COUNT_PER_RANK, MAX_RANK, check_count, check_rank};
-use crate::game::rank_map::RankMap;
+use crate::game::maps::RankMap;
 
 #[derive(Debug)]
 pub struct Player {
