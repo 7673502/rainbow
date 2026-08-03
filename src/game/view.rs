@@ -1,4 +1,4 @@
-use crate::constants::MAX_RANK;
+use crate::game::maps::RankMap;
 use crate::game::play::Play;
 use crate::game::trick_type::TrickType;
 
@@ -11,7 +11,7 @@ pub struct GameView {
     pub active_player_count: u8,
 
     pub my_uid: u8,
-    pub my_hand: [u8; MAX_RANK + 1],
+    pub my_hand: RankMap,
     pub my_points: u8,
 
     pub opponents: Vec<OpponentView>,

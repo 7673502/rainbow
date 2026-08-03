@@ -1,6 +1,7 @@
 pub mod combo;
 pub mod game_runner;
 pub mod game_state;
+pub mod maps;
 pub mod play;
 pub mod player;
 pub mod trick_type;

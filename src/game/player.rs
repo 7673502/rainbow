@@ -1,9 +1,10 @@
 use crate::constants::{MAX_COUNT_PER_RANK, MAX_RANK, check_count, check_rank};
+use crate::game::maps::RankMap;
 
 #[derive(Debug)]
 pub struct Player {
     uid: u8,
-    hand: [u8; MAX_RANK + 1],
+    hand: RankMap,
     points: u8,
 }
 
@@ -11,7 +12,7 @@ impl Player {
     pub fn new(uid: u8) -> Self {
         Self {
             uid,
-            hand: [0; MAX_RANK + 1],
+            hand: RankMap::new(),
             points: 0,
         }
     }
@@ -28,41 +29,45 @@ impl Player {
         self.points += points;
     }
 
-    pub fn hand(&self) -> [u8; MAX_RANK + 1] {
+    pub fn hand(&self) -> RankMap {
         self.hand
     }
 
     pub fn rank_count(&self, rank: u8) -> u8 {
         check_rank(rank);
-        self.hand[rank as usize]
+        self.hand[rank]
     }
 
     pub fn add_cards(&mut self, rank: u8, count: u8) {
         check_rank(rank);
         check_count(count);
         assert!(
-            count + self.hand[rank as usize] <= MAX_COUNT_PER_RANK as u8,
+            count + self.hand[rank] <= MAX_COUNT_PER_RANK as u8,
             "Adding {} cards when player hand contains {} cards of rank {} exceeds max count per rank of {}",
             count,
-            self.hand[rank as usize],
+            self.hand[rank],
             rank,
             MAX_COUNT_PER_RANK
         );
-        self.hand[rank as usize] += count;
+        self.hand[rank] += count;
     }
 
     pub fn remove_cards(&mut self, rank: u8, count: u8) {
         check_rank(rank);
         check_count(count);
         assert!(
-            count <= self.hand[rank as usize],
+            count <= self.hand[rank],
             "Count must be less than or equal to amount in hand"
         );
-        self.hand[rank as usize] -= count;
+        self.hand[rank] -= count;
     }
 
     pub fn hand_size(&self) -> u8 {
-        self.hand.iter().sum::<u8>()
+        let mut total = 0;
+        for rank in 1..=MAX_RANK as u8 {
+            total += self.hand[rank];
+        }
+        total
     }
 
     pub fn is_empty(&self) -> bool {
@@ -70,7 +75,11 @@ impl Player {
     }
 
     #[cfg(test)]
-    pub fn set_hand(&mut self, hand: [u8; MAX_RANK + 1]) {
-        self.hand = hand;
+    pub fn set_hand(&mut self, hand: [u8; MAX_RANK]) {
+        self.hand = RankMap::new();
+
+        for rank in 1..=MAX_RANK {
+            self.hand[rank as u8] = hand[rank - 1];
+        }
     }
 }

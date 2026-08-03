@@ -8,6 +8,7 @@ use crate::constants::{
     HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
 };
 use crate::game::combo::{Combo, ComboKind};
+use crate::game::maps::{PointMap, RankMap};
 use crate::game::play::Play;
 use crate::game::player::Player;
 use crate::game::trick_type::TrickType;
@@ -195,33 +196,33 @@ impl GameState {
             self.active_player_count = active_player_count;
 
             // update next round's points
-            let mut total_counts = [0; MAX_RANK + 1];
+            let mut total_counts = RankMap::new();
             for play in &self.current_trick {
                 match play.combo.kind() {
                     ComboKind::Single { rank } => {
-                        total_counts[rank as usize] += 1;
+                        total_counts[rank] += 1;
                     }
                     ComboKind::Set { rank, count } => {
-                        total_counts[rank as usize] += count;
+                        total_counts[rank] += count;
                     }
                     ComboKind::Run { start, end } => (start..=end).for_each(|rank| {
-                        total_counts[rank as usize] += 1;
+                        total_counts[rank] += 1;
                     }),
                 }
             }
-            let mut next_round_points_candidates = [0u8; MAX_POINTS_VALUE + 1];
-            for rank in 1..=MAX_RANK {
+            let mut next_round_points_candidates = PointMap::new();
+            for rank in 1..=MAX_RANK as u8 {
                 let pairs = total_counts[rank] / 2;
                 let singles = total_counts[rank] % 2;
                 next_round_points_candidates[rank * 2] += pairs;
                 next_round_points_candidates[rank] += singles;
             }
             self.available_points.clear();
-            for value in (1..=MAX_POINTS_VALUE).rev() {
+            for value in (1..=MAX_POINTS_VALUE as u8).rev() {
                 while next_round_points_candidates[value] > 0
                     && self.available_points.len() < self.active_player_count as usize
                 {
-                    self.available_points.push(value as u8);
+                    self.available_points.push(value);
                     next_round_points_candidates[value] -= 1;
                 }
             }
@@ -295,7 +296,7 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].set_hand([0, 2, 2, 0, 0, 0, 0]);
+            game.players[0].set_hand([2, 2, 0, 0, 0, 0]);
             game.current_trick_type = TrickType::Run;
 
             let legal_actions = game.legal_actions(1);
@@ -315,7 +316,7 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].set_hand([0, 0, 3, 0, 3, 3, 0]);
+            game.players[0].set_hand([0, 3, 0, 3, 3, 0]);
             game.current_trick_type = TrickType::Set;
 
             let legal_actions = game.legal_actions(1);
@@ -345,7 +346,7 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].set_hand([0, 2, 3, 1, 3, 0, 3]);
+            game.players[0].set_hand([2, 3, 1, 3, 0, 3]);
             game.current_trick_type = TrickType::Run;
 
             let legal_actions = game.legal_actions(1);
@@ -369,7 +370,7 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].set_hand([0, 0, 0, 2, 2, 0, 0]);
+            game.players[0].set_hand([0, 0, 2, 2, 0, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
             let legal_actions = game.legal_actions(1);
@@ -386,7 +387,7 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].set_hand([0, 0, 0, 0, 0, 2, 0]);
+            game.players[0].set_hand([0, 0, 0, 0, 2, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
             game.apply_action(Combo::new_single(5));
@@ -400,7 +401,7 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].set_hand([0, 0, 0, 0, 0, 0, 3]);
+            game.players[0].set_hand([0, 0, 0, 0, 0, 3]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
             game.apply_action(Combo::new_set(6, 2));
@@ -414,7 +415,7 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].set_hand([0, 1, 2, 1, 1, 0, 0]);
+            game.players[0].set_hand([1, 2, 1, 1, 0, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
             game.apply_action(Combo::new_run(1, 4));
@@ -433,10 +434,10 @@ mod tests {
         for num_players in 3..=6 {
             let mut game = GameState::new((1..=num_players).collect(), Some(42));
 
-            game.players[0].set_hand([0, 1, 1, 1, 1, 1, 1]);
+            game.players[0].set_hand([1, 1, 1, 1, 1, 1]);
             game.apply_action(Combo::new_run(1, 6));
             for i in 1..num_players as usize {
-                game.players[i].set_hand([0, 2, 2, 2, 2, 2, 2]);
+                game.players[i].set_hand([2, 2, 2, 2, 2, 2]);
                 game.apply_action(Combo::new_single(2));
             }
 
@@ -492,9 +493,9 @@ mod tests {
         let mut game = GameState::new(vec![1, 2, 3], Some(42));
 
         // give players specific cards
-        game.players[0].set_hand([0, 1, 1, 0, 0, 0, 0]);
-        game.players[1].set_hand([0, 1, 0, 0, 0, 1, 0]);
-        game.players[2].set_hand([0, 1, 0, 0, 1, 0, 0]);
+        game.players[0].set_hand([1, 1, 0, 0, 0, 0]);
+        game.players[1].set_hand([1, 0, 0, 0, 1, 0]);
+        game.players[2].set_hand([1, 0, 0, 1, 0, 0]);
 
         // play cards in turn order
         game.apply_action(Combo::new_single(2));
@@ -514,9 +515,9 @@ mod tests {
         let mut game = GameState::new(vec![1, 2, 3], Some(42));
 
         // give players cards with a tie for highest
-        game.players[0].set_hand([0, 1, 0, 0, 0, 0, 1]);
-        game.players[1].set_hand([0, 1, 0, 0, 1, 0, 0]);
-        game.players[2].set_hand([0, 1, 0, 0, 0, 0, 1]);
+        game.players[0].set_hand([1, 0, 0, 0, 0, 1]);
+        game.players[1].set_hand([1, 0, 0, 1, 0, 0]);
+        game.players[2].set_hand([1, 0, 0, 0, 0, 1]);
 
         // play the cards
         game.apply_action(Combo::new_single(6));
@@ -533,13 +534,13 @@ mod tests {
 
         // empty hands to control exactly what is played
         for p in &mut game.players {
-            p.set_hand([0; MAX_RANK + 1]);
+            p.set_hand([0; MAX_RANK]);
         }
 
         // setup players so they can play two 3s and two 4s total
-        game.players[0].set_hand([0, 1, 0, 3, 0, 0, 0]);
-        game.players[1].set_hand([0, 1, 0, 0, 2, 0, 0]);
-        game.players[2].set_hand([0, 1, 0, 0, 2, 0, 0]);
+        game.players[0].set_hand([1, 0, 3, 0, 0, 0]);
+        game.players[1].set_hand([1, 0, 0, 2, 0, 0]);
+        game.players[2].set_hand([1, 0, 0, 2, 0, 0]);
 
         // play the cards
         game.apply_action(Combo::new_set(3, 2));
@@ -557,13 +558,13 @@ mod tests {
         let mut game = GameState::new(vec![1, 2, 3, 4], Some(42));
 
         for i in 0..4 {
-            game.players[i].set_hand([0; MAX_RANK + 1]);
+            game.players[i].set_hand([0; MAX_RANK]);
         }
 
-        game.players[0].set_hand([0, 1, 0, 0, 0, 0, 0]);
-        game.players[1].set_hand([0, 2, 0, 0, 0, 0, 0]);
-        game.players[2].set_hand([0, 1, 0, 0, 0, 0, 0]);
-        game.players[3].set_hand([0, 3, 0, 0, 0, 0, 0]);
+        game.players[0].set_hand([1, 0, 0, 0, 0, 0]);
+        game.players[1].set_hand([2, 0, 0, 0, 0, 0]);
+        game.players[2].set_hand([1, 0, 0, 0, 0, 0]);
+        game.players[3].set_hand([3, 0, 0, 0, 0, 0]);
 
         game.apply_action(Combo::new_single(1));
         game.apply_action(Combo::new_single(1));
