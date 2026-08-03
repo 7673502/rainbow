@@ -11,7 +11,7 @@ pub struct GameView {
     pub active_player_count: u8,
 
     pub my_uid: u8,
-    pub my_hand: [u8; MAX_RANK + 1],
+    pub my_hand: [u8; MAX_RANK],
     pub my_points: u8,
 
     pub opponents: Vec<OpponentView>,
