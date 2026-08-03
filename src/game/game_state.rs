@@ -10,6 +10,7 @@ use crate::constants::{
 use crate::game::combo::{Combo, ComboKind};
 use crate::game::play::Play;
 use crate::game::player::Player;
+use crate::game::rank_map::RankMap;
 use crate::game::trick_type::TrickType;
 use crate::game::view::{GameView, OpponentView};
 
@@ -195,24 +196,24 @@ impl GameState {
             self.active_player_count = active_player_count;
 
             // update next round's points
-            let mut total_counts = [0; MAX_RANK];
+            let mut total_counts = RankMap::new();
             for play in &self.current_trick {
                 match play.combo.kind() {
                     ComboKind::Single { rank } => {
-                        total_counts[(rank - 1) as usize] += 1;
+                        total_counts[rank] += 1;
                     }
                     ComboKind::Set { rank, count } => {
-                        total_counts[(rank - 1) as usize] += count;
+                        total_counts[rank] += count;
                     }
                     ComboKind::Run { start, end } => (start..=end).for_each(|rank| {
-                        total_counts[(rank - 1) as usize] += 1;
+                        total_counts[rank] += 1;
                     }),
                 }
             }
             let mut next_round_points_candidates = [0u8; MAX_POINTS_VALUE];
             for rank in 1..=MAX_RANK {
-                let pairs = total_counts[rank - 1] / 2;
-                let singles = total_counts[rank - 1] % 2;
+                let pairs = total_counts[rank as u8] / 2;
+                let singles = total_counts[rank as u8] % 2;
                 next_round_points_candidates[rank * 2 - 1] += pairs;
                 next_round_points_candidates[rank - 1] += singles;
             }

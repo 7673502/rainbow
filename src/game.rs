@@ -3,6 +3,7 @@ pub mod game_runner;
 pub mod game_state;
 pub mod play;
 pub mod player;
+pub mod rank_map;
 pub mod trick_type;
 pub mod view;
 
