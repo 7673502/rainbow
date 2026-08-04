@@ -20,3 +20,7 @@ pub const fn check_rank(rank: u8) {
 pub const MAX_PLAYERS: usize = 6;
 pub const MIN_PLAYERS: usize = 3;
 pub const EMPTY_HANDS_TO_END_GAME: u8 = 2;
+
+// example hand: [9, 1, 1, 1, 1, 1]
+// 6 singles, 8 sets, 15 runs
+pub const MAX_LEGAL_ACTIONS: usize = 29;

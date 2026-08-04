@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 
 use crate::constants::{
     DECK_SIZE, EMPTY_HANDS_TO_END_GAME, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS,
-    HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
+    HAND_SIZE_6_PLAYERS, MAX_LEGAL_ACTIONS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
 };
 use crate::game::combo::{Combo, ComboKind};
 use crate::game::maps::{PointMap, RankMap};
@@ -92,8 +92,8 @@ impl GameState {
             .expect("Could not find player with given uid")
     }
 
-    pub fn legal_actions(&self, player_uid: u8) -> Vec<Combo> {
-        let mut combos = Vec::new();
+    pub fn legal_actions(&self, player_uid: u8) -> ArrayVec<Combo, MAX_LEGAL_ACTIONS> {
+        let mut combos = ArrayVec::<Combo, MAX_LEGAL_ACTIONS>::new();
 
         let player = self.player_by_uid(player_uid);
 
