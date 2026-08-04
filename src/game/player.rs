@@ -1,11 +1,15 @@
-use crate::constants::{MAX_COUNT_PER_RANK, MAX_RANK, check_count, check_rank};
+use crate::constants::{MAX_COUNT_PER_RANK, check_count, check_rank};
 use crate::game::maps::RankMap;
+
+#[cfg(test)]
+use crate::constants::MAX_RANK;
 
 #[derive(Debug)]
 pub struct Player {
     uid: u8,
     hand: RankMap,
     points: u8,
+    hand_size: u8,
 }
 
 impl Player {
@@ -14,6 +18,7 @@ impl Player {
             uid,
             hand: RankMap::new(),
             points: 0,
+            hand_size: 0,
         }
     }
 
@@ -49,6 +54,7 @@ impl Player {
             rank,
             MAX_COUNT_PER_RANK
         );
+        self.hand_size += count;
         self.hand[rank] += count;
     }
 
@@ -59,27 +65,26 @@ impl Player {
             count <= self.hand[rank],
             "Count must be less than or equal to amount in hand"
         );
+        self.hand_size -= count;
         self.hand[rank] -= count;
     }
 
     pub fn hand_size(&self) -> u8 {
-        let mut total = 0;
-        for rank in 1..=MAX_RANK as u8 {
-            total += self.hand[rank];
-        }
-        total
+        self.hand_size
     }
 
     pub fn is_empty(&self) -> bool {
-        self.hand_size() == 0
+        self.hand_size == 0
     }
 
     #[cfg(test)]
     pub fn set_hand(&mut self, hand: [u8; MAX_RANK]) {
         self.hand = RankMap::new();
+        self.hand_size = 0;
 
         for rank in 1..=MAX_RANK {
             self.hand[rank as u8] = hand[rank - 1];
+            self.hand_size += hand[rank - 1];
         }
     }
 }
