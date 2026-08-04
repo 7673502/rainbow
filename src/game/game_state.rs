@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
@@ -5,7 +6,7 @@ use std::cmp::Ordering;
 
 use crate::constants::{
     DECK_SIZE, EMPTY_HANDS_TO_END_GAME, HAND_SIZE_3_4_PLAYERS, HAND_SIZE_5_PLAYERS,
-    HAND_SIZE_6_PLAYERS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
+    HAND_SIZE_6_PLAYERS, MAX_LEGAL_ACTIONS, MAX_PLAYERS, MAX_POINTS_VALUE, MAX_RANK, MIN_PLAYERS,
 };
 use crate::game::combo::{Combo, ComboKind};
 use crate::game::maps::{PointMap, RankMap};
@@ -16,9 +17,9 @@ use crate::game::view::{GameView, OpponentView};
 
 #[derive(Debug)]
 pub struct GameState {
-    available_points: Vec<u8>,
-    players: Vec<Player>,
-    current_trick: Vec<Play>,
+    available_points: ArrayVec<u8, MAX_PLAYERS>,
+    players: ArrayVec<Player, MAX_PLAYERS>,
+    current_trick: ArrayVec<Play, MAX_PLAYERS>,
     current_trick_type: TrickType,
     current_player_index: u8,
     active_player_count: u8,
@@ -27,7 +28,8 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(player_uids: Vec<u8>, seed: Option<u64>) -> Self {
-        let mut deck: Vec<u8> = (1..=MAX_RANK as u8).cycle().take(DECK_SIZE).collect();
+        let mut deck: ArrayVec<u8, DECK_SIZE> =
+            (1..=MAX_RANK as u8).cycle().take(DECK_SIZE).collect();
 
         let mut rng = match seed {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -35,7 +37,8 @@ impl GameState {
         };
         deck.shuffle(&mut rng);
 
-        let mut players: Vec<Player> = player_uids.iter().map(|p| Player::new(*p)).collect();
+        let mut players: ArrayVec<Player, MAX_PLAYERS> =
+            player_uids.iter().map(|p| Player::new(*p)).collect();
 
         let initial_hand_size = match players.len() {
             3 | 4 => HAND_SIZE_3_4_PLAYERS,
@@ -57,19 +60,24 @@ impl GameState {
                 )
             }
 
-            let hand_vec = deck.split_off(deck.len() - initial_hand_size);
-            for j in hand_vec {
-                players[i].add_cards(j, 1);
+            for _ in 0..initial_hand_size {
+                players[i].add_cards(deck.pop().expect("Deck empty when setting hand"), 1);
             }
         }
 
-        let mut available_points: Vec<u8> = deck.split_off(deck.len() - players.len());
+        let mut available_points = ArrayVec::<u8, MAX_PLAYERS>::new();
+        for _ in 0..players.len() {
+            available_points.push(
+                deck.pop()
+                    .expect("Deck empty when setting available points"),
+            );
+        }
         available_points.sort_unstable_by(|a, b| b.cmp(a));
 
         Self {
             available_points,
             players,
-            current_trick: Vec::new(),
+            current_trick: ArrayVec::<Play, MAX_PLAYERS>::new(),
             current_trick_type: TrickType::Open,
             current_player_index: 0,
             active_player_count: player_uids.len() as u8,
@@ -84,8 +92,8 @@ impl GameState {
             .expect("Could not find player with given uid")
     }
 
-    pub fn legal_actions(&self, player_uid: u8) -> Vec<Combo> {
-        let mut combos = Vec::new();
+    pub fn legal_actions(&self, player_uid: u8) -> ArrayVec<Combo, MAX_LEGAL_ACTIONS> {
+        let mut combos = ArrayVec::<Combo, MAX_LEGAL_ACTIONS>::new();
 
         let player = self.player_by_uid(player_uid);
 
@@ -236,7 +244,7 @@ impl GameState {
     pub fn scrub_state(&self, player_uid: u8) -> GameView {
         let player = self.player_by_uid(player_uid);
 
-        let mut opponents: Vec<OpponentView> = Vec::new();
+        let mut opponents = ArrayVec::<OpponentView, { MAX_PLAYERS - 1 }>::new();
 
         for p in &self.players {
             if p.uid() != player_uid {
