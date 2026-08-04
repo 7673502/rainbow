@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
@@ -16,9 +17,9 @@ use crate::game::view::{GameView, OpponentView};
 
 #[derive(Debug)]
 pub struct GameState {
-    available_points: Vec<u8>,
-    players: Vec<Player>,
-    current_trick: Vec<Play>,
+    available_points: ArrayVec<u8, MAX_PLAYERS>,
+    players: ArrayVec<Player, MAX_PLAYERS>,
+    current_trick: ArrayVec<Play, MAX_PLAYERS>,
     current_trick_type: TrickType,
     current_player_index: u8,
     active_player_count: u8,
@@ -35,7 +36,8 @@ impl GameState {
         };
         deck.shuffle(&mut rng);
 
-        let mut players: Vec<Player> = player_uids.iter().map(|p| Player::new(*p)).collect();
+        let mut players: ArrayVec<Player, MAX_PLAYERS> =
+            player_uids.iter().map(|p| Player::new(*p)).collect();
 
         let initial_hand_size = match players.len() {
             3 | 4 => HAND_SIZE_3_4_PLAYERS,
@@ -63,13 +65,19 @@ impl GameState {
             }
         }
 
-        let mut available_points: Vec<u8> = deck.split_off(deck.len() - players.len());
+        let mut available_points = ArrayVec::<u8, MAX_PLAYERS>::new();
+        for _ in 0..players.len() {
+            available_points.push(
+                deck.pop()
+                    .expect("Deck empty when setting available points"),
+            );
+        }
         available_points.sort_unstable_by(|a, b| b.cmp(a));
 
         Self {
             available_points,
             players,
-            current_trick: Vec::new(),
+            current_trick: ArrayVec::<Play, MAX_PLAYERS>::new(),
             current_trick_type: TrickType::Open,
             current_player_index: 0,
             active_player_count: player_uids.len() as u8,
@@ -236,7 +244,7 @@ impl GameState {
     pub fn scrub_state(&self, player_uid: u8) -> GameView {
         let player = self.player_by_uid(player_uid);
 
-        let mut opponents: Vec<OpponentView> = Vec::new();
+        let mut opponents = ArrayVec::<OpponentView, { MAX_PLAYERS - 1 }>::new();
 
         for p in &self.players {
             if p.uid() != player_uid {
