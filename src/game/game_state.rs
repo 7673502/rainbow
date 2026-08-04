@@ -28,7 +28,8 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(player_uids: Vec<u8>, seed: Option<u64>) -> Self {
-        let mut deck: Vec<u8> = (1..=MAX_RANK as u8).cycle().take(DECK_SIZE).collect();
+        let mut deck: ArrayVec<u8, DECK_SIZE> =
+            (1..=MAX_RANK as u8).cycle().take(DECK_SIZE).collect();
 
         let mut rng = match seed {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -59,9 +60,8 @@ impl GameState {
                 )
             }
 
-            let hand_vec = deck.split_off(deck.len() - initial_hand_size);
-            for j in hand_vec {
-                players[i].add_cards(j, 1);
+            for _ in 0..initial_hand_size {
+                players[i].add_cards(deck.pop().expect("Deck empty when setting hand"), 1);
             }
         }
 
