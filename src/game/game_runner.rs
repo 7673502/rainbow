@@ -1,30 +1,22 @@
-use std::collections::HashMap;
+use arrayvec::ArrayVec;
 
 use crate::agents::Agent;
+use crate::constants::MAX_PLAYERS;
 use crate::game::game_state::GameState;
 
 #[derive(Debug)]
 pub struct GameRunner {
     state: GameState,
-    agents: HashMap<u8, Box<dyn Agent>>,
+    agents: ArrayVec<Box<dyn Agent>, MAX_PLAYERS>,
 }
 
 impl GameRunner {
-    pub fn new(
-        participants: impl IntoIterator<Item = (u8, Box<dyn Agent>)>,
-        seed: Option<u64>,
-    ) -> Self {
-        let mut player_uids = Vec::new();
-        let mut agents = HashMap::new();
-
-        for (uid, agent) in participants {
-            player_uids.push(uid);
-            agents.insert(uid, agent);
-        }
+    pub fn new(agents: impl IntoIterator<Item = Box<dyn Agent>>, seed: Option<u64>) -> Self {
+        let agents: ArrayVec<Box<dyn Agent>, MAX_PLAYERS> = agents.into_iter().collect();
 
         GameRunner {
-            state: GameState::new(player_uids, seed),
-            agents: agents.into_iter().collect(),
+            state: GameState::new(agents.len() as u8, seed),
+            agents,
         }
     }
 
@@ -36,7 +28,7 @@ impl GameRunner {
 
     fn run_iteration(&mut self) -> bool {
         let current_player_uid = self.state.current_player_uid();
-        let current_agent = &self.agents[&current_player_uid];
+        let current_agent = &self.agents[current_player_uid as usize];
 
         let valid_actions = self.state.legal_actions(current_player_uid);
         let scrubbed_state = self.state.scrub_state(current_player_uid);
@@ -63,13 +55,10 @@ mod tests {
 
     const MAX_ITERATIONS: usize = 100;
 
-    fn create_random_participants(
-        agent_seeds: &[u64; 6],
-        num_players: u8,
-    ) -> HashMap<u8, Box<dyn Agent>> {
-        let mut participants: HashMap<u8, Box<dyn Agent>> = HashMap::new();
+    fn create_random_participants(agent_seeds: &[u64; 6], num_players: u8) -> Vec<Box<dyn Agent>> {
+        let mut participants: Vec<Box<dyn Agent>> = Vec::new();
         for i in 0..num_players {
-            participants.insert(i, Box::new(RandomAgent::new(Some(agent_seeds[i as usize]))));
+            participants.push(Box::new(RandomAgent::new(Some(agent_seeds[i as usize]))));
         }
         participants
     }

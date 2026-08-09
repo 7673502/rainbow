@@ -41,7 +41,7 @@ mod tests {
             valid_actions in vec(any::<Combo>(), 1..10),
         ) {
             let agent = RandomAgent::new(Some(seed));
-            let dummy_view = crate::game::game_state::GameState::new(vec![1, 2, 3], None).scrub_state(1);
+            let dummy_view = crate::game::game_state::GameState::new(3, None).scrub_state(1);
             let index = agent.choose_action(dummy_view, &valid_actions);
 
             prop_assert!(index < valid_actions.len());
