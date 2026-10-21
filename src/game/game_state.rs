@@ -27,7 +27,7 @@ pub struct GameState {
 }
 
 impl GameState {
-    pub fn new(player_uids: Vec<u8>, seed: Option<u64>) -> Self {
+    pub fn new(num_players: u8, seed: Option<u64>) -> Self {
         let mut deck: ArrayVec<u8, DECK_SIZE> =
             (1..=MAX_RANK as u8).cycle().take(DECK_SIZE).collect();
 
@@ -37,29 +37,24 @@ impl GameState {
         };
         deck.shuffle(&mut rng);
 
-        let mut players: ArrayVec<Player, MAX_PLAYERS> =
-            player_uids.iter().map(|p| Player::new(*p)).collect();
-
-        let initial_hand_size = match players.len() {
+        let initial_hand_size = match num_players {
             3 | 4 => HAND_SIZE_3_4_PLAYERS,
             5 => HAND_SIZE_5_PLAYERS,
             6 => HAND_SIZE_6_PLAYERS,
             _ => panic!(
-                "The game supports {}-{} players (inclusive). Received player uids vector of length {}",
+                "The game supports {}-{} players (inclusive). Received {} players",
                 MIN_PLAYERS,
                 MAX_PLAYERS,
-                players.len()
+                num_players
             ),
         };
 
-        for i in 0..players.len() {
-            if player_uids[i + 1..].contains(&player_uids[i]) {
-                panic!(
-                    "All player uids must be unique. Received uid {} more than once",
-                    player_uids[i]
-                )
-            }
+        let mut players = ArrayVec::<Player, MAX_PLAYERS>::new();
+        for uid in 0..num_players {
+            players.push(Player::new(uid));
+        }
 
+        for i in 0..players.len() {
             for _ in 0..initial_hand_size {
                 players[i].add_cards(deck.pop().expect("Deck empty when setting hand"), 1);
             }
@@ -80,16 +75,13 @@ impl GameState {
             current_trick: ArrayVec::<Play, MAX_PLAYERS>::new(),
             current_trick_type: TrickType::Open,
             current_player_index: 0,
-            active_player_count: player_uids.len() as u8,
+            active_player_count: num_players,
             is_game_over: false,
         }
     }
 
     fn player_by_uid(&self, player_uid: u8) -> &Player {
-        self.players
-            .iter()
-            .find(|p| p.uid() == player_uid)
-            .expect("Could not find player with given uid")
+        &self.players[player_uid as usize]
     }
 
     pub fn legal_actions(&self, player_uid: u8) -> ArrayVec<Combo, MAX_LEGAL_ACTIONS> {
@@ -287,7 +279,7 @@ mod tests {
     #[test]
     fn test_game_state_new() {
         for num_players in 3..=6 {
-            let game = GameState::new((1..=num_players).collect(), Some(42));
+            let game = GameState::new(num_players, Some(42));
 
             assert_eq!(game.available_points.len(), num_players as usize);
             assert_eq!(game.players.len(), num_players as usize);
@@ -302,12 +294,12 @@ mod tests {
     #[test]
     fn test_legal_actions_singles() {
         for num_players in 3..=6 {
-            let mut game = GameState::new((1..=num_players).collect(), Some(42));
+            let mut game = GameState::new(num_players, Some(42));
 
             game.players[0].set_hand([2, 2, 0, 0, 0, 0]);
             game.current_trick_type = TrickType::Run;
 
-            let legal_actions = game.legal_actions(1);
+            let legal_actions = game.legal_actions(0);
 
             assert_eq!(legal_actions.len(), 3);
             assert!(legal_actions.contains(&Combo::new_single(1)));
@@ -322,12 +314,12 @@ mod tests {
     #[test]
     fn test_legal_actions_sets() {
         for num_players in 3..=6 {
-            let mut game = GameState::new((1..=num_players).collect(), Some(42));
+            let mut game = GameState::new(num_players, Some(42));
 
             game.players[0].set_hand([0, 3, 0, 3, 3, 0]);
             game.current_trick_type = TrickType::Set;
 
-            let legal_actions = game.legal_actions(1);
+            let legal_actions = game.legal_actions(0);
 
             assert_eq!(legal_actions.len(), 9);
 
@@ -352,12 +344,12 @@ mod tests {
     #[test]
     fn test_legal_actions_runs() {
         for num_players in 3..=6 {
-            let mut game = GameState::new((1..=num_players).collect(), Some(42));
+            let mut game = GameState::new(num_players, Some(42));
 
             game.players[0].set_hand([2, 3, 1, 3, 0, 3]);
             game.current_trick_type = TrickType::Run;
 
-            let legal_actions = game.legal_actions(1);
+            let legal_actions = game.legal_actions(0);
 
             assert_eq!(legal_actions.len(), 11);
 
@@ -376,12 +368,12 @@ mod tests {
     #[test]
     fn test_legal_actions_open() {
         for num_players in 3..=6 {
-            let mut game = GameState::new((1..=num_players).collect(), Some(42));
+            let mut game = GameState::new(num_players, Some(42));
 
             game.players[0].set_hand([0, 0, 2, 2, 0, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
 
-            let legal_actions = game.legal_actions(1);
+            let legal_actions = game.legal_actions(0);
 
             assert_eq!(legal_actions.len(), 5);
 
@@ -393,7 +385,7 @@ mod tests {
     #[test]
     fn test_apply_action_to_single() {
         for num_players in 3..=6 {
-            let mut game = GameState::new((1..=num_players).collect(), Some(42));
+            let mut game = GameState::new(num_players, Some(42));
 
             game.players[0].set_hand([0, 0, 0, 0, 2, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
@@ -407,7 +399,7 @@ mod tests {
     #[test]
     fn test_apply_action_to_set() {
         for num_players in 3..=6 {
-            let mut game = GameState::new((1..=num_players).collect(), Some(42));
+            let mut game = GameState::new(num_players, Some(42));
 
             game.players[0].set_hand([0, 0, 0, 0, 0, 3]);
             assert_eq!(game.current_trick_type, TrickType::Open);
@@ -421,7 +413,7 @@ mod tests {
     #[test]
     fn test_apply_action_to_run() {
         for num_players in 3..=6 {
-            let mut game = GameState::new((1..=num_players).collect(), Some(42));
+            let mut game = GameState::new(num_players, Some(42));
 
             game.players[0].set_hand([1, 2, 1, 1, 0, 0]);
             assert_eq!(game.current_trick_type, TrickType::Open);
@@ -440,7 +432,7 @@ mod tests {
     #[test]
     fn test_empty_hand_inactivity() {
         for num_players in 3..=6 {
-            let mut game = GameState::new((1..=num_players).collect(), Some(42));
+            let mut game = GameState::new(num_players, Some(42));
 
             game.players[0].set_hand([1, 1, 1, 1, 1, 1]);
             game.apply_action(Combo::new_run(1, 6));
@@ -457,14 +449,14 @@ mod tests {
     #[test]
     fn test_scrub_state() {
         for num_players in 3..=6 {
-            let mut game = GameState::new((1..=num_players).collect(), Some(42));
+            let mut game = GameState::new(num_players, Some(42));
 
             // give players specific points to differentiate them
             for (i, p) in game.players.iter_mut().enumerate() {
                 p.add_points((i as u8 + 1) * 10);
             }
 
-            let my_uid = 1;
+            let my_uid = 0;
             let view = game.scrub_state(my_uid);
 
             // verify personal data is fully intact
@@ -498,7 +490,7 @@ mod tests {
 
     #[test]
     fn test_trick_resolution() {
-        let mut game = GameState::new(vec![1, 2, 3], Some(42));
+        let mut game = GameState::new(3, Some(42));
 
         // give players specific cards
         game.players[0].set_hand([1, 1, 0, 0, 0, 0]);
@@ -520,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_trick_resolution_tie() {
-        let mut game = GameState::new(vec![1, 2, 3], Some(42));
+        let mut game = GameState::new(3, Some(42));
 
         // give players cards with a tie for highest
         game.players[0].set_hand([1, 0, 0, 0, 0, 1]);
@@ -538,7 +530,7 @@ mod tests {
 
     #[test]
     fn test_next_round_points() {
-        let mut game = GameState::new(vec![1, 2, 3], Some(42));
+        let mut game = GameState::new(3, Some(42));
 
         // empty hands to control exactly what is played
         for p in &mut game.players {
@@ -563,7 +555,7 @@ mod tests {
 
     #[test]
     fn test_game_over_trigger() {
-        let mut game = GameState::new(vec![1, 2, 3, 4], Some(42));
+        let mut game = GameState::new(4, Some(42));
 
         for i in 0..4 {
             game.players[i].set_hand([0; MAX_RANK]);
